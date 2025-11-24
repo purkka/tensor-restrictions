@@ -24,20 +24,15 @@ pub fn unit_tensor(order: usize, r: usize) -> ArrayD<u32> {
     tensor
 }
 
-fn create_variable<A, B, C>(a: A, b: B, c: C) -> PolyVariable
-where
-    A: Display,
-    B: Display,
-    C: Display,
-{
+fn create_variable<T: Display>(a: T, b: T, c: T) -> PolyVariable {
     PolyVariable::Symbol(symbol!(&format!("v_{a}_{b}_{c}")))
 }
 
-fn make_poly_vars(dim_s: &[usize], dim_t: &[usize]) -> Arc<Vec<PolyVariable>> {
+fn make_poly_vars(dims_s: &[usize], dims_t: &[usize]) -> Arc<Vec<PolyVariable>> {
     let mut vars = Vec::new();
-    for (axis, (&ds, &dt)) in dim_s.iter().zip(dim_t.iter()).enumerate() {
-        for (s_idx, t_idx) in (0..ds).cartesian_product(0..dt) {
-            vars.push(create_variable(axis, s_idx, t_idx));
+    for (axis, (&ds, &dt)) in dims_s.iter().zip(dims_t.iter()).enumerate() {
+        for (idx_s, idx_t) in (0..ds).cartesian_product(0..dt) {
+            vars.push(create_variable(axis, idx_s, idx_t));
         }
     }
     Arc::new(vars)
@@ -45,8 +40,8 @@ fn make_poly_vars(dim_s: &[usize], dim_t: &[usize]) -> Arc<Vec<PolyVariable>> {
 
 fn get_flat_index(
     axis: usize,
-    s_idx: usize,
-    t_idx: usize,
+    idx_s: usize,
+    idx_t: usize,
     dims_s: &[usize],
     dims_t: &[usize],
 ) -> usize {
@@ -54,7 +49,7 @@ fn get_flat_index(
     for a in 0..axis {
         offset += dims_s[a] * dims_t[a];
     }
-    offset + s_idx * dims_t[axis] + t_idx
+    offset + idx_s * dims_t[axis] + idx_t
 }
 
 /// Checks whether a tensor `tensor_s` reduces to another tensor `tensor_t`
@@ -69,50 +64,50 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
         anyhow::bail!("Tensor orders do not match")
     }
 
-    let var_map = make_poly_vars(&dimensions_s, &dimensions_t);
+    let variable_map = make_poly_vars(&dimensions_s, &dimensions_t);
 
     // big prime that fits into u32
     let field = Zp::new(1_000_000_007);
 
-    // build polynomial system
-    let mut poly_system: Vec<MultivariatePolynomial<_, u32>> = Vec::new();
+    let mut polynomial_system: Vec<MultivariatePolynomial<_, u32>> = Vec::new();
 
-    for index_set in dimensions_s.iter().map(|&d| 0..d).multi_cartesian_product() {
-        let mut p = MultivariatePolynomial::new(&field, Some(var_map.len()), var_map.clone());
+    for index_s in dimensions_s.iter().map(|&d| 0..d).multi_cartesian_product() {
+        let mut polynomial =
+            MultivariatePolynomial::new(&field, Some(variable_map.len()), variable_map.clone());
 
-        for idxs in tensor_t
+        for index_t in tensor_t
             .shape()
             .iter()
             .map(|&d| 0..d)
             .multi_cartesian_product()
         {
-            let val = tensor_t[&idxs[..]];
+            let value_t = tensor_t[&index_t[..]];
             // only handle nonzero elements
-            if val == 0 {
+            if value_t == 0 {
                 continue;
             }
 
-            let mut exps = vec![0u32; var_map.len()];
-            for (axis, (&s_i, &t_i)) in index_set.iter().zip(idxs.iter()).enumerate() {
-                let var_index = get_flat_index(axis, s_i, t_i, &dimensions_s, &dimensions_t);
-                exps[var_index] = 1;
+            let mut exponents = vec![0u32; variable_map.len()];
+            for (axis, (&idx_s, &idx_t)) in index_s.iter().zip(index_t.iter()).enumerate() {
+                let var_index = get_flat_index(axis, idx_s, idx_t, &dimensions_s, &dimensions_t);
+                exponents[var_index] = 1;
             }
 
-            p.append_monomial(field.to_element(val), &exps);
+            polynomial.append_monomial(field.to_element(value_t), &exponents);
         }
 
-        let s_val = tensor_s[&index_set[..]];
+        let value_s = tensor_s[&index_s[..]];
 
-        let zero_exps = vec![0u32; var_map.len()];
-        p.append_monomial(
-            field.mul(field.neg(&field.to_element(1)), field.to_element(s_val)),
+        let zero_exps = vec![0u32; variable_map.len()];
+        polynomial.append_monomial(
+            field.mul(field.neg(&field.to_element(1)), field.to_element(value_s)),
             &zero_exps,
         );
 
-        poly_system.push(p);
+        polynomial_system.push(polynomial);
     }
 
-    let groebner_basis = GroebnerBasis::new(&poly_system, false);
+    let groebner_basis = GroebnerBasis::new(&polynomial_system, false);
     let has_one = groebner_basis.system.iter().any(|p| p.is_one());
 
     Ok(!has_one)

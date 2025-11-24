@@ -61,9 +61,7 @@ pub fn tensor_as_polynomial(tensor: &ArrayD<u32>, e: &[u32]) -> anyhow::Result<A
             let mut product = Atom::num(tensor_element);
 
             for (k, (&e_k, &tensor_index)) in e.iter().zip(tensor_index_set.iter()).enumerate() {
-                // TODO Check if we want 0-indexing instead
-                let variable = create_variable(k + 1, e_k, tensor_index + 1);
-
+                let variable = create_variable(k, e_k, tensor_index);
                 product *= variable;
             }
 
@@ -91,7 +89,7 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
     for (tensor_axis, (&dim_s, &dim_t)) in dimensions_s.iter().zip(dimensions_t.iter()).enumerate()
     {
         for (idx_s, idx_t) in (0..dim_s).cartesian_product(0..dim_t) {
-            variables.push(create_variable(tensor_axis + 1, idx_s + 1, idx_t + 1));
+            variables.push(create_variable(tensor_axis, idx_s, idx_t));
         }
     }
 
@@ -100,8 +98,7 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
     let field = Zp::new(1_000_000_007); // big prime that fits into u32
 
     for index_set in dimensions_s.iter().map(|&d| 0..d).multi_cartesian_product() {
-        // for now we use 1-indexing
-        let e: Vec<u32> = index_set.iter().map(|&ei| (ei as u32) + 1).collect();
+        let e: Vec<u32> = index_set.iter().map(|&ei| ei as u32).collect();
         let te_poly = tensor_as_polynomial(tensor_t, &e)?;
 
         let tensor_s_element = tensor_s[&index_set[..]];

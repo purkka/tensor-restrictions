@@ -1,6 +1,22 @@
+use std::fmt::Display;
+
 use itertools::Itertools;
 use ndarray::ArrayD;
-use symbolica::{atom::Atom, symbol};
+use symbolica::{
+    atom::{Atom, AtomCore},
+    domains::finite_field::Zp,
+    poly::{groebner::GroebnerBasis, polynomial::MultivariatePolynomial},
+    symbol,
+};
+
+fn create_variable<A, B, C>(a: A, b: B, c: C) -> Atom
+where
+    A: Display,
+    B: Display,
+    C: Display,
+{
+    Atom::from(symbol!(&format!("v_{a}_{b}_{c}")))
+}
 
 /// Converts an order-n `tensor` into a multivariate polynomial with the given index labels `e`.
 ///
@@ -11,7 +27,7 @@ use symbolica::{atom::Atom, symbol};
 /// ```
 ///
 /// Returns an error if the length of `e` does not equal the order of `tensor`.
-pub fn tensor_as_polynomial(tensor: &ArrayD<i64>, e: &[i64]) -> anyhow::Result<Atom> {
+pub fn tensor_as_polynomial(tensor: &ArrayD<u32>, e: &[u32]) -> anyhow::Result<Atom> {
     let dimensions = tensor.shape().to_vec();
 
     let e_len = e.len();
@@ -33,8 +49,7 @@ pub fn tensor_as_polynomial(tensor: &ArrayD<i64>, e: &[i64]) -> anyhow::Result<A
 
             for (k, (&e_k, &tensor_index)) in e.iter().zip(tensor_index_set.iter()).enumerate() {
                 // TODO Check if we want 0-indexing instead
-                let variable =
-                    Atom::from(symbol!(&format!("v_{}_{e_k}_{}", k + 1, tensor_index + 1)));
+                let variable = create_variable(k + 1, e_k, tensor_index + 1);
 
                 product *= variable;
             }
@@ -44,6 +59,48 @@ pub fn tensor_as_polynomial(tensor: &ArrayD<i64>, e: &[i64]) -> anyhow::Result<A
     }
 
     Ok(sum)
+}
+
+/// Checks whether a tensor `tensor_s` reduces to another tensor `tensor_t`
+/// via a Groebner basis computation.
+pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyhow::Result<bool> {
+    let dimensions_s = tensor_s.shape().to_vec();
+    let dimensions_t = tensor_t.shape().to_vec();
+
+    if dimensions_s.len() != dimensions_t.len() {
+        anyhow::bail!("Tensor orders do not match")
+    }
+
+    // create all variables that can appear
+    let mut variables: Vec<Atom> = Vec::new();
+    for (tensor_axis, (&dim_s, &dim_t)) in dimensions_s.iter().zip(dimensions_t.iter()).enumerate()
+    {
+        for (idx_s, idx_t) in (0..dim_s).cartesian_product(0..dim_t) {
+            variables.push(create_variable(tensor_axis + 1, idx_s + 1, idx_t + 1));
+        }
+    }
+
+    // build polynomial system
+    let mut poly: Vec<MultivariatePolynomial<_, u32>> = Vec::new();
+    let field = Zp::new(1_000_000_007); // big prime that fits into u32
+
+    for index_set in dimensions_s.iter().map(|&d| 0..d).multi_cartesian_product() {
+        // for now we use 1-indexing
+        let e: Vec<u32> = index_set.iter().map(|&ei| (ei as u32) + 1).collect();
+        let te_poly = tensor_as_polynomial(tensor_t, &e)?;
+
+        let tensor_s_element = tensor_s[&index_set[..]];
+        let tensor_s_atom = Atom::num(tensor_s_element);
+
+        let diff = te_poly - tensor_s_atom;
+
+        poly.push(diff.to_polynomial(&field, None));
+    }
+
+    let groebner_basis = GroebnerBasis::new(&poly, false);
+    let has_one = groebner_basis.system.iter().any(|p| p.is_one());
+
+    Ok(!has_one)
 }
 
 // TODO Add unit tests

@@ -103,4 +103,22 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
     Ok(!has_one)
 }
 
-// TODO Add unit tests
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use ndarray::array;
+
+    #[test]
+    fn test_tensor_reduces_on_small_matrices() {
+        let m1 = array![[1, 0], [0, 0]].into_dyn();
+        let m2 = array![[1, 0], [0, 1]].into_dyn();
+        let m3 = array![[1, 0, 0], [0, 1, 0], [0, 0, 1]].into_dyn();
+
+        assert!(matches!(tensor_reduces_to(&m1, &m2), Ok(true)));
+        assert!(matches!(tensor_reduces_to(&m2, &m1), Ok(false)));
+        assert!(matches!(tensor_reduces_to(&m2, &m3), Ok(true)));
+        assert!(matches!(tensor_reduces_to(&m3, &m1), Ok(false)));
+        assert!(matches!(tensor_reduces_to(&m3, &m2), Ok(false)));
+        assert!(matches!(tensor_reduces_to(&m1, &m3), Ok(true)));
+    }
+}

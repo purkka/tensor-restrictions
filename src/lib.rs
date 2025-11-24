@@ -56,7 +56,7 @@ fn get_flat_index(
 /// via a Groebner basis computation.
 ///
 /// Returns an error if the orders of the tensors do not match.
-pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyhow::Result<bool> {
+pub fn tensor_restriction_of(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyhow::Result<bool> {
     let dimensions_s = tensor_s.shape().to_vec();
     let dimensions_t = tensor_t.shape().to_vec();
 
@@ -129,20 +129,20 @@ mod tests {
         let m2 = array![[1, 0], [0, 1]].into_dyn();
         let m3 = array![[1, 0, 0], [0, 1, 0], [0, 0, 1]].into_dyn();
 
-        assert!(matches!(tensor_reduces_to(&m1, &m2), Ok(true)));
-        assert!(matches!(tensor_reduces_to(&m2, &m1), Ok(false)));
-        assert!(matches!(tensor_reduces_to(&m2, &m3), Ok(true)));
-        assert!(matches!(tensor_reduces_to(&m3, &m1), Ok(false)));
-        assert!(matches!(tensor_reduces_to(&m3, &m2), Ok(false)));
-        assert!(matches!(tensor_reduces_to(&m1, &m3), Ok(true)));
+        assert!(matches!(tensor_restriction_of(&m1, &m2), Ok(true)));
+        assert!(matches!(tensor_restriction_of(&m2, &m1), Ok(false)));
+        assert!(matches!(tensor_restriction_of(&m2, &m3), Ok(true)));
+        assert!(matches!(tensor_restriction_of(&m3, &m1), Ok(false)));
+        assert!(matches!(tensor_restriction_of(&m3, &m2), Ok(false)));
+        assert!(matches!(tensor_restriction_of(&m1, &m3), Ok(true)));
 
         let p1 = array![[[1, 0], [0, 0]], [[0, 1], [1, 0]]].into_dyn();
         let r1 = unit_tensor(3, 1);
         let r2 = unit_tensor(3, 2);
         let r3 = unit_tensor(3, 3);
 
-        assert!(matches!(tensor_reduces_to(&p1, &r1), Ok(false)));
-        assert!(matches!(tensor_reduces_to(&p1, &r2), Ok(false)));
-        assert!(matches!(tensor_reduces_to(&p1, &r3), Ok(true)));
+        assert!(matches!(tensor_restriction_of(&p1, &r1), Ok(false)));
+        assert!(matches!(tensor_restriction_of(&p1, &r2), Ok(false)));
+        assert!(matches!(tensor_restriction_of(&p1, &r3), Ok(true)));
     }
 }

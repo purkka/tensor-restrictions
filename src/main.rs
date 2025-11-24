@@ -1,11 +1,8 @@
-use symbolica::{atom::Atom, symbol};
-
-fn make_symbolic_variable(v: &str, exp: usize, z: usize) -> Atom {
-    Atom::from(symbol!(&format!("{v}_p{exp}_{z}")))
-}
+use ndarray::array;
+use tensor_restrictions::tensor_as_polynomial;
 
 fn main() {
-    let var = make_symbolic_variable("v", 3, 2);
+    let t_poly = tensor_as_polynomial(&array![[2, 0, 0], [0, 2, 0], [0, 0, 2]].into_dyn(), &[1, 2]);
 
-    println!("{var:?}");
+    println!("{t_poly:?}");
 }

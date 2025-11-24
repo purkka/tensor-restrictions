@@ -4,4 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-symbolica = "0.20.0"
+anyhow = "1.0.100"
+itertools = "0.14.0"
+ndarray = "0.17.1"
+symbolica = "1.0.0"

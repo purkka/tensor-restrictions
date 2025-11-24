@@ -71,10 +71,12 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
 
     let mut polynomial_system: Vec<MultivariatePolynomial<_, u32>> = Vec::new();
 
+    // loop through elements of `tensor_s`
     for index_s in dimensions_s.iter().map(|&d| 0..d).multi_cartesian_product() {
         let mut polynomial =
             MultivariatePolynomial::new(&field, Some(variable_map.len()), variable_map.clone());
 
+        // populate with terms from `tensor_t`
         for index_t in tensor_t
             .shape()
             .iter()
@@ -98,6 +100,7 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
 
         let value_s = tensor_s[&index_s[..]];
 
+        // polynomial equals zero iff a valid mapping exists from `tensor_t` to `tensor_s`
         let zero_exps = vec![0u32; variable_map.len()];
         polynomial.append_monomial(
             field.mul(field.neg(&field.to_element(1)), field.to_element(value_s)),
@@ -107,6 +110,7 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
         polynomial_system.push(polynomial);
     }
 
+    // if the system contains 1, no mapping exists
     let groebner_basis = GroebnerBasis::new(&polynomial_system, false);
     let has_one = groebner_basis.system.iter().any(|p| p.is_one());
 

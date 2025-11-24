@@ -1,11 +1,13 @@
-use std::fmt::Display;
+use std::{fmt::Display, sync::Arc};
 
 use itertools::Itertools;
 use ndarray::{ArrayD, IxDyn};
 use symbolica::{
-    atom::{Atom, AtomCore},
-    domains::finite_field::Zp,
-    poly::{groebner::GroebnerBasis, polynomial::MultivariatePolynomial},
+    domains::{
+        RingOps,
+        finite_field::{FiniteFieldCore, Zp},
+    },
+    poly::{PolyVariable, groebner::GroebnerBasis, polynomial::MultivariatePolynomial},
     symbol,
 };
 
@@ -22,60 +24,43 @@ pub fn unit_tensor(order: usize, r: usize) -> ArrayD<u32> {
     tensor
 }
 
-fn create_variable<A, B, C>(a: A, b: B, c: C) -> Atom
+fn create_variable<A, B, C>(a: A, b: B, c: C) -> PolyVariable
 where
     A: Display,
     B: Display,
     C: Display,
 {
-    Atom::from(symbol!(&format!("v_{a}_{b}_{c}")))
+    PolyVariable::Symbol(symbol!(&format!("v_{a}_{b}_{c}")))
 }
 
-/// Converts an order-n `tensor` into a multivariate polynomial with the given index labels `e`.
-///
-/// The function returns the sum over all valid tensor index tuples `(i_1, i_2, ..., i_n)`
-///
-/// ```text
-/// ∑_{i_1, i_2, ..., i_n} T[i_1, i_2, ..., i_n] * ∏_{k=1}^{n} v_<k>_<e_k>_<i_k>
-/// ```
-///
-/// Returns an error if the length of `e` does not equal the order of `tensor`.
-pub fn tensor_as_polynomial(tensor: &ArrayD<u32>, e: &[u32]) -> anyhow::Result<Atom> {
-    let dimensions = tensor.shape().to_vec();
-
-    let e_len = e.len();
-    let tensor_order = dimensions.len();
-
-    if e_len != tensor_order {
-        anyhow::bail!(
-            "Index label vector e has length {e_len}, but tensor has order {tensor_order}",
-        );
-    }
-
-    let mut sum: Atom = Atom::Zero;
-
-    for tensor_index_set in dimensions.iter().map(|&n| 0..n).multi_cartesian_product() {
-        let tensor_element = tensor[&tensor_index_set[..]];
-
-        if tensor_element != 0 {
-            let mut product = Atom::num(tensor_element);
-
-            for (k, (&e_k, &tensor_index)) in e.iter().zip(tensor_index_set.iter()).enumerate() {
-                let variable = create_variable(k, e_k, tensor_index);
-                product *= variable;
-            }
-
-            sum += product;
+fn make_poly_vars(dim_s: &[usize], dim_t: &[usize]) -> Arc<Vec<PolyVariable>> {
+    let mut vars = Vec::new();
+    for (axis, (&ds, &dt)) in dim_s.iter().zip(dim_t.iter()).enumerate() {
+        for (s_idx, t_idx) in (0..ds).cartesian_product(0..dt) {
+            vars.push(create_variable(axis, s_idx, t_idx));
         }
     }
+    Arc::new(vars)
+}
 
-    Ok(sum)
+fn get_flat_index(
+    axis: usize,
+    s_idx: usize,
+    t_idx: usize,
+    dims_s: &[usize],
+    dims_t: &[usize],
+) -> usize {
+    let mut offset = 0;
+    for a in 0..axis {
+        offset += dims_s[a] * dims_t[a];
+    }
+    offset + s_idx * dims_t[axis] + t_idx
 }
 
 /// Checks whether a tensor `tensor_s` reduces to another tensor `tensor_t`
 /// via a Groebner basis computation.
 ///
-/// Rteurns an error if the orders of the tensors do not match.
+/// Returns an error if the orders of the tensors do not match.
 pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyhow::Result<bool> {
     let dimensions_s = tensor_s.shape().to_vec();
     let dimensions_t = tensor_t.shape().to_vec();
@@ -84,32 +69,50 @@ pub fn tensor_reduces_to(tensor_s: &ArrayD<u32>, tensor_t: &ArrayD<u32>) -> anyh
         anyhow::bail!("Tensor orders do not match")
     }
 
-    // create all variables that can appear
-    let mut variables: Vec<Atom> = Vec::new();
-    for (tensor_axis, (&dim_s, &dim_t)) in dimensions_s.iter().zip(dimensions_t.iter()).enumerate()
-    {
-        for (idx_s, idx_t) in (0..dim_s).cartesian_product(0..dim_t) {
-            variables.push(create_variable(tensor_axis, idx_s, idx_t));
-        }
-    }
+    let var_map = make_poly_vars(&dimensions_s, &dimensions_t);
+
+    // big prime that fits into u32
+    let field = Zp::new(1_000_000_007);
 
     // build polynomial system
-    let mut poly: Vec<MultivariatePolynomial<_, u32>> = Vec::new();
-    let field = Zp::new(1_000_000_007); // big prime that fits into u32
+    let mut poly_system: Vec<MultivariatePolynomial<_, u32>> = Vec::new();
 
     for index_set in dimensions_s.iter().map(|&d| 0..d).multi_cartesian_product() {
-        let e: Vec<u32> = index_set.iter().map(|&ei| ei as u32).collect();
-        let te_poly = tensor_as_polynomial(tensor_t, &e)?;
+        let mut p = MultivariatePolynomial::new(&field, Some(var_map.len()), var_map.clone());
 
-        let tensor_s_element = tensor_s[&index_set[..]];
-        let tensor_s_atom = Atom::num(tensor_s_element);
+        for idxs in tensor_t
+            .shape()
+            .iter()
+            .map(|&d| 0..d)
+            .multi_cartesian_product()
+        {
+            let val = tensor_t[&idxs[..]];
+            // only handle nonzero elements
+            if val == 0 {
+                continue;
+            }
 
-        let diff = te_poly - tensor_s_atom;
+            let mut exps = vec![0u32; var_map.len()];
+            for (axis, (&s_i, &t_i)) in index_set.iter().zip(idxs.iter()).enumerate() {
+                let var_index = get_flat_index(axis, s_i, t_i, &dimensions_s, &dimensions_t);
+                exps[var_index] = 1;
+            }
 
-        poly.push(diff.to_polynomial(&field, None));
+            p.append_monomial(field.to_element(val), &exps);
+        }
+
+        let s_val = tensor_s[&index_set[..]];
+
+        let zero_exps = vec![0u32; var_map.len()];
+        p.append_monomial(
+            field.mul(field.neg(&field.to_element(1)), field.to_element(s_val)),
+            &zero_exps,
+        );
+
+        poly_system.push(p);
     }
 
-    let groebner_basis = GroebnerBasis::new(&poly, false);
+    let groebner_basis = GroebnerBasis::new(&poly_system, false);
     let has_one = groebner_basis.system.iter().any(|p| p.is_one());
 
     Ok(!has_one)

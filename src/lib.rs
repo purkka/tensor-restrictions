@@ -1,3 +1,4 @@
+pub mod isomorphism;
 pub mod restriction;
 
 use ndarray::{ArrayD, IxDyn};

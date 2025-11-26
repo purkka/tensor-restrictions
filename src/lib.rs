@@ -20,6 +20,8 @@ pub fn unit_tensor(r: usize) -> ArrayD<u32> {
     order_n_unit_tensor(3, r)
 }
 
+/// Returns matrix multiplication tensor for multiplying a `n` times `m` matrix
+/// by a `m` times `p` matrix
 pub fn matrix_multiplication_tensor(n: usize, m: usize, p: usize) -> ArrayD<u32> {
     let mut tensor = ArrayD::<u32>::zeros(IxDyn(&[n * m, m * p, p * n]));
 
@@ -34,6 +36,7 @@ pub fn matrix_multiplication_tensor(n: usize, m: usize, p: usize) -> ArrayD<u32>
     tensor
 }
 
+/// Returns matrix multiplication tensor for multiplying two `n` times `n` matrices
 pub fn square_matrix_multiplication_tensor(n: usize) -> ArrayD<u32> {
     matrix_multiplication_tensor(n, n, n)
 }

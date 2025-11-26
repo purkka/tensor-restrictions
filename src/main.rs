@@ -1,5 +1,5 @@
 use ndarray::array;
-use tensor_restrictions::{tensor_restriction_of, unit_tensor};
+use tensor_restrictions::{order_n_unit_tensor, restriction::tensor_restriction_of};
 
 fn main() {
     let m1 = array![[1, 0], [0, 0]].into_dyn();
@@ -14,9 +14,9 @@ fn main() {
     println!("{:?}", tensor_restriction_of(&m1, &m3));
 
     let p1 = array![[[1, 0], [0, 0]], [[0, 1], [1, 0]]].into_dyn();
-    let r1 = unit_tensor(3, 1);
-    let r2 = unit_tensor(3, 2);
-    let r3 = unit_tensor(3, 3);
+    let r1 = order_n_unit_tensor(3, 1);
+    let r2 = order_n_unit_tensor(3, 2);
+    let r3 = order_n_unit_tensor(3, 3);
 
     println!("{:?}", tensor_restriction_of(&p1, &r1));
     println!("{:?}", tensor_restriction_of(&p1, &r2));

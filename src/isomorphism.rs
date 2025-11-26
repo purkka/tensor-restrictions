@@ -19,7 +19,7 @@ impl NormalizedPattern {
             coordinates
                 .iter()
                 .enumerate()
-                .map(|(i, &x)| (x, i + 1))
+                .map(|(i, &x)| (x, i))
                 .collect()
         }
 
@@ -44,11 +44,7 @@ impl NormalizedPattern {
 
         normalized_coords.sort();
 
-        let dimensions = (
-            *x_coords.iter().max().unwrap_or(&0),
-            *y_coords.iter().max().unwrap_or(&0),
-            *z_coords.iter().max().unwrap_or(&0),
-        );
+        let dimensions = (x_coords.len(), y_coords.len(), z_coords.len());
 
         Self {
             coordinates: normalized_coords,

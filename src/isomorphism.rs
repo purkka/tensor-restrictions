@@ -5,6 +5,7 @@ use itertools::{Itertools, iproduct};
 type Coordinate = (usize, usize, usize);
 type Pattern = BTreeSet<Coordinate>;
 
+#[derive(Eq, Hash, PartialEq)]
 struct NormalizedPattern {
     coordinates: Vec<Coordinate>,
     dimensions: (usize, usize, usize),
@@ -81,5 +82,58 @@ impl PatternGenerator {
             .combinations(self.n)
             .map(|combos| combos.into_iter().collect())
             .collect()
+    }
+}
+
+struct IsomorphismClassifier;
+
+impl IsomorphismClassifier {
+    fn classify_patterns(patterns: Vec<Pattern>) -> (usize, Vec<Vec<Pattern>>) {
+        let mut classes: HashMap<NormalizedPattern, Vec<Pattern>> = HashMap::new();
+
+        for pattern in patterns {
+            let normalized = NormalizedPattern::from_pattern(&pattern);
+            classes.entry(normalized).or_default().push(pattern);
+        }
+
+        let class_count = classes.len();
+        let classes_vec: Vec<Vec<Pattern>> = classes.into_values().collect();
+
+        (class_count, classes_vec)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn create_pattern(coords: &[(usize, usize, usize)]) -> Pattern {
+        coords.iter().cloned().collect()
+    }
+
+    #[test]
+    fn test_generate_all_patterns_small() {
+        let generator = PatternGenerator::new(1, 1);
+        let patterns = generator.generate_all_patterns();
+        assert_eq!(patterns.len(), 1);
+        assert_eq!(patterns[0], create_pattern(&[(0, 0, 0)]));
+    }
+
+    #[test]
+    fn test_generate_all_patterns_count() {
+        let generator = PatternGenerator::new(2, 2);
+        let patterns = generator.generate_all_patterns();
+        assert_eq!(patterns.len(), 28);
+    }
+
+    #[test]
+    fn test_classify_isomorphic_patterns() {
+        let pattern1 = create_pattern(&[(0, 0, 0), (0, 1, 1)]);
+        let pattern2 = create_pattern(&[(1, 1, 1), (1, 2, 2)]);
+        let patterns = vec![pattern1, pattern2];
+
+        let (count, classes) = IsomorphismClassifier::classify_patterns(patterns);
+        assert_eq!(count, 1);
+        assert_eq!(classes[0].len(), 2);
     }
 }

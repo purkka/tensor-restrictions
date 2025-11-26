@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashMap};
 
-use itertools::Itertools;
+use itertools::{Itertools, iproduct};
 
 type Coordinate = (usize, usize, usize);
 type Pattern = BTreeSet<Coordinate>;
@@ -54,5 +54,36 @@ impl NormalizedPattern {
             coordinates: normalized_coords,
             dimensions,
         }
+    }
+}
+
+struct PatternGenerator {
+    d: usize, // dimension d x d x d
+    n: usize, // nof nonzero elements
+}
+
+impl PatternGenerator {
+    fn new(d: usize, n: usize) -> Self {
+        Self { d, n }
+    }
+
+    fn generate_all_patterns(&self) -> Vec<Pattern> {
+        if self.n == 0 {
+            return vec![BTreeSet::new()];
+        }
+
+        if self.n > self.d * self.d * self.d {
+            return vec![];
+        }
+
+        let all_coords: Vec<Coordinate> = iproduct!(0..self.d, 0..self.d, 0..self.d)
+            .map(|(i, j, k)| (i, j, k))
+            .collect();
+
+        all_coords
+            .into_iter()
+            .combinations(self.n)
+            .map(|combos| combos.into_iter().collect())
+            .collect()
     }
 }

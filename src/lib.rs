@@ -11,17 +11,40 @@ use symbolica::{
     symbol,
 };
 
-/// Returns `r`-th unit tensor of order `order`
-pub fn unit_tensor(order: usize, r: usize) -> ArrayD<u32> {
-    let shape = vec![r; order];
+/// Returns the `r`-th unit tensor of order `n`
+pub fn order_n_unit_tensor(n: usize, r: usize) -> ArrayD<u32> {
+    let shape = vec![r; n];
     let mut tensor = ArrayD::<u32>::zeros(IxDyn(&shape));
 
     for i in 0..r {
-        let index = vec![i; order];
+        let index = vec![i; n];
         tensor[&index[..]] = 1;
     }
 
     tensor
+}
+
+/// Returns `r`-th unit tensor of order 3
+pub fn unit_tensor(r: usize) -> ArrayD<u32> {
+    order_n_unit_tensor(3, r)
+}
+
+pub fn matrix_multiplication_tensor(n: usize, m: usize, p: usize) -> ArrayD<u32> {
+    let mut tensor = ArrayD::<u32>::zeros(IxDyn(&[n * m, m * p, p * n]));
+
+    for i in 0..n {
+        for j in 0..m {
+            for k in 0..p {
+                tensor[[i * m + j, j * p + k, k * n + i]] = 1;
+            }
+        }
+    }
+
+    tensor
+}
+
+pub fn square_matrix_multiplication_tensor(n: usize) -> ArrayD<u32> {
+    matrix_multiplication_tensor(n, n, n)
 }
 
 fn create_variable<T: Display>(a: T, b: T, c: T) -> PolyVariable {
@@ -152,9 +175,9 @@ mod tests {
         assert!(matches!(tensor_restriction_of(&m1, &m3), Ok(true)));
 
         let p1 = array![[[1, 0], [0, 0]], [[0, 1], [1, 0]]].into_dyn();
-        let r1 = unit_tensor(3, 1);
-        let r2 = unit_tensor(3, 2);
-        let r3 = unit_tensor(3, 3);
+        let r1 = order_n_unit_tensor(3, 1);
+        let r2 = order_n_unit_tensor(3, 2);
+        let r3 = order_n_unit_tensor(3, 3);
 
         assert!(matches!(tensor_restriction_of(&p1, &r1), Ok(false)));
         assert!(matches!(tensor_restriction_of(&p1, &r2), Ok(false)));

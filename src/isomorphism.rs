@@ -54,52 +54,57 @@ impl NormalizedPattern {
     }
 }
 
-struct PatternGenerator {
-    d: usize, // dimension d x d x d
-    n: usize, // nof nonzero elements
-}
-
-impl PatternGenerator {
-    fn new(d: usize, n: usize) -> Self {
-        Self { d, n }
+fn generate_all_patterns(d: usize, n: usize) -> Vec<Pattern> {
+    if n == 0 {
+        return vec![BTreeSet::new()];
     }
 
-    fn generate_all_patterns(&self) -> Vec<Pattern> {
-        if self.n == 0 {
-            return vec![BTreeSet::new()];
-        }
-
-        if self.n > self.d * self.d * self.d {
-            return vec![];
-        }
-
-        let all_coords: Vec<Coordinate> = iproduct!(0..self.d, 0..self.d, 0..self.d)
-            .map(|(i, j, k)| (i, j, k))
-            .collect();
-
-        all_coords
-            .into_iter()
-            .combinations(self.n)
-            .map(|combos| combos.into_iter().collect())
-            .collect()
+    if n > d * d * d {
+        return vec![];
     }
+
+    let all_coords: Vec<Coordinate> = iproduct!(0..d, 0..d, 0..d)
+        .map(|(i, j, k)| (i, j, k))
+        .collect();
+
+    all_coords
+        .into_iter()
+        .combinations(n)
+        .map(|combos| combos.into_iter().collect())
+        .collect()
 }
 
-struct IsomorphismClassifier;
+fn normalize_and_classify_patterns(patterns: Vec<Pattern>) -> Vec<Vec<Pattern>> {
+    let mut classes: HashMap<NormalizedPattern, Vec<Pattern>> = HashMap::new();
 
-impl IsomorphismClassifier {
-    fn classify_patterns(patterns: Vec<Pattern>) -> (usize, Vec<Vec<Pattern>>) {
-        let mut classes: HashMap<NormalizedPattern, Vec<Pattern>> = HashMap::new();
+    for pattern in patterns {
+        let normalized = NormalizedPattern::from_pattern(&pattern);
+        classes.entry(normalized).or_default().push(pattern);
+    }
 
-        for pattern in patterns {
-            let normalized = NormalizedPattern::from_pattern(&pattern);
-            classes.entry(normalized).or_default().push(pattern);
+    classes.into_values().collect()
+}
+
+/// Iterate through all order-3 tensor isomorphism classes for tensors
+/// of dimension `d` x `d` x `d` and print them. For each isomorphism
+/// class, we print out one representative.
+pub fn print_tensor_isomorphism_classes(d: usize) {
+    let mut results: HashMap<usize, Vec<Vec<Pattern>>> = HashMap::new();
+
+    for n in 0..=(d * d * d) {
+        let patterns = generate_all_patterns(d, n);
+        let classes = normalize_and_classify_patterns(patterns);
+        results.insert(n, classes);
+    }
+
+    for (n, classes) in results.iter().sorted_by_key(|&(&n, _)| n) {
+        println!("nonzero elements: {}", n);
+        println!("nof classes: {}", classes.len());
+        for (i, class) in classes.iter().enumerate() {
+            if let Some(representative) = class.first() {
+                println!("\tclass {}: {:?}", i + 1, representative);
+            }
         }
-
-        let class_count = classes.len();
-        let classes_vec: Vec<Vec<Pattern>> = classes.into_values().collect();
-
-        (class_count, classes_vec)
     }
 }
 
@@ -113,16 +118,14 @@ mod tests {
 
     #[test]
     fn test_generate_all_patterns_small() {
-        let generator = PatternGenerator::new(1, 1);
-        let patterns = generator.generate_all_patterns();
+        let patterns = generate_all_patterns(1, 1);
         assert_eq!(patterns.len(), 1);
         assert_eq!(patterns[0], create_pattern(&[(0, 0, 0)]));
     }
 
     #[test]
     fn test_generate_all_patterns_count() {
-        let generator = PatternGenerator::new(2, 2);
-        let patterns = generator.generate_all_patterns();
+        let patterns = generate_all_patterns(2, 2);
         assert_eq!(patterns.len(), 28);
     }
 
@@ -132,8 +135,8 @@ mod tests {
         let pattern2 = create_pattern(&[(1, 1, 1), (1, 2, 2)]);
         let patterns = vec![pattern1, pattern2];
 
-        let (count, classes) = IsomorphismClassifier::classify_patterns(patterns);
-        assert_eq!(count, 1);
+        let classes = normalize_and_classify_patterns(patterns);
+        assert_eq!(classes.len(), 1);
         assert_eq!(classes[0].len(), 2);
     }
 }

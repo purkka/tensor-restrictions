@@ -1,5 +1,8 @@
 use ndarray::array;
-use tensor_restrictions::{order_n_unit_tensor, restriction::tensor_restriction_of};
+use tensor_restrictions::{
+    isomorphism::print_tensor_isomorphism_classes, order_n_unit_tensor,
+    restriction::tensor_restriction_of,
+};
 
 fn main() {
     let m1 = array![[1, 0], [0, 0]].into_dyn();
@@ -21,4 +24,6 @@ fn main() {
     println!("{:?}", tensor_restriction_of(&p1, &r1));
     println!("{:?}", tensor_restriction_of(&p1, &r2));
     println!("{:?}", tensor_restriction_of(&p1, &r3));
+
+    print_tensor_isomorphism_classes(2);
 }

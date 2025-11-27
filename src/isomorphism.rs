@@ -8,48 +8,48 @@ type Pattern = BTreeSet<Coordinate>;
 #[derive(Eq, Hash, PartialEq)]
 struct NormalizedPattern {
     coordinates: Vec<Coordinate>,
-    dimensions: (usize, usize, usize),
 }
 
 impl NormalizedPattern {
-    fn from_pattern(pattern: &Pattern) -> Self {
-        fn sort_and_get_coordinate_map(coordinates: &mut Vec<usize>) -> HashMap<usize, usize> {
-            coordinates.dedup();
-            coordinates.sort();
-
-            coordinates
-                .iter()
-                .enumerate()
-                .map(|(i, &x)| (x, i))
-                .collect()
+    fn from_pattern(pattern: &Pattern, d: usize) -> Self {
+        if pattern.is_empty() {
+            return Self {
+                coordinates: vec![],
+            };
         }
 
-        let mut x_coords: Vec<usize> = pattern.iter().map(|&(x, _, _)| x).collect();
-        let mut y_coords: Vec<usize> = pattern.iter().map(|&(_, y, _)| y).collect();
-        let mut z_coords: Vec<usize> = pattern.iter().map(|&(_, _, z)| z).collect();
+        let indices_per_axis: Vec<usize> = (0..d).collect();
+        let x_perms: Vec<Vec<usize>> = indices_per_axis.iter().cloned().permutations(d).collect();
+        let y_perms: Vec<Vec<usize>> = indices_per_axis.iter().cloned().permutations(d).collect();
+        let z_perms: Vec<Vec<usize>> = indices_per_axis.iter().cloned().permutations(d).collect();
 
-        let x_map: HashMap<usize, usize> = sort_and_get_coordinate_map(&mut x_coords);
-        let y_map: HashMap<usize, usize> = sort_and_get_coordinate_map(&mut y_coords);
-        let z_map: HashMap<usize, usize> = sort_and_get_coordinate_map(&mut z_coords);
+        // try all combinations of permutations to find the canonical (lex smallest) representation
+        let mut canonical_form = None;
 
-        let mut normalized_coords: Vec<Coordinate> = pattern
-            .iter()
-            .map(|&(x, y, z)| {
-                (
-                    *x_map.get(&x).unwrap(),
-                    *y_map.get(&y).unwrap(),
-                    *z_map.get(&z).unwrap(),
-                )
-            })
-            .collect();
+        for x_perm in &x_perms {
+            for y_perm in &y_perms {
+                for z_perm in &z_perms {
+                    let mut transformed: Vec<Coordinate> = pattern
+                        .iter()
+                        .map(|&(x, y, z)| {
+                            let new_x = x_perm[x];
+                            let new_y = y_perm[y];
+                            let new_z = z_perm[z];
+                            (new_x, new_y, new_z)
+                        })
+                        .collect();
 
-        normalized_coords.sort();
+                    transformed.sort();
 
-        let dimensions = (x_coords.len(), y_coords.len(), z_coords.len());
+                    if canonical_form.is_none() || transformed < canonical_form.clone().unwrap() {
+                        canonical_form = Some(transformed);
+                    }
+                }
+            }
+        }
 
         Self {
-            coordinates: normalized_coords,
-            dimensions,
+            coordinates: canonical_form.unwrap(),
         }
     }
 }
@@ -74,11 +74,11 @@ fn generate_all_patterns(d: usize, n: usize) -> Vec<Pattern> {
         .collect()
 }
 
-fn normalize_and_classify_patterns(patterns: Vec<Pattern>) -> Vec<Vec<Pattern>> {
+fn normalize_and_classify_patterns(patterns: Vec<Pattern>, d: usize) -> Vec<Vec<Pattern>> {
     let mut classes: HashMap<NormalizedPattern, Vec<Pattern>> = HashMap::new();
 
     for pattern in patterns {
-        let normalized = NormalizedPattern::from_pattern(&pattern);
+        let normalized = NormalizedPattern::from_pattern(&pattern, d);
         classes.entry(normalized).or_default().push(pattern);
     }
 
@@ -93,7 +93,7 @@ pub fn print_tensor_isomorphism_classes(d: usize) {
 
     for n in 0..=(d * d * d) {
         let patterns = generate_all_patterns(d, n);
-        let classes = normalize_and_classify_patterns(patterns);
+        let classes = normalize_and_classify_patterns(patterns, d);
         results.insert(n, classes);
     }
 
@@ -135,8 +135,31 @@ mod tests {
         let pattern2 = create_pattern(&[(1, 1, 1), (1, 2, 2)]);
         let patterns = vec![pattern1, pattern2];
 
-        let classes = normalize_and_classify_patterns(patterns);
+        let classes = normalize_and_classify_patterns(patterns, 3);
         assert_eq!(classes.len(), 1);
         assert_eq!(classes[0].len(), 2);
+    }
+
+    #[test]
+    fn test_known_counts_d2() {
+        let d = 2;
+
+        let cases = vec![
+            (0, 1),
+            (1, 1),
+            (2, 7),
+            (3, 7),
+            (4, 14),
+            (5, 7),
+            (6, 7),
+            (7, 1),
+            (8, 1),
+        ];
+
+        for (n, expected_count) in cases {
+            let patterns = generate_all_patterns(d, n);
+            let classes = normalize_and_classify_patterns(patterns, d);
+            assert_eq!(classes.len(), expected_count);
+        }
     }
 }

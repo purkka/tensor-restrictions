@@ -2,17 +2,17 @@ use std::collections::{BTreeSet, HashMap};
 
 use itertools::{Itertools, iproduct};
 
-type Coordinate = (usize, usize, usize);
-type Pattern = BTreeSet<Coordinate>;
+pub type Coordinate = (usize, usize, usize);
+pub type Delta = BTreeSet<Coordinate>; // effectively the support of a tensor of order 3
 
 #[derive(Eq, Hash, PartialEq)]
-struct NormalizedPattern {
+struct NormalizedDelta {
     coordinates: Vec<Coordinate>,
 }
 
-impl NormalizedPattern {
-    fn from_pattern(pattern: &Pattern, dim: usize) -> Self {
-        if pattern.is_empty() {
+impl NormalizedDelta {
+    fn from_delta(delta: &Delta, dim: usize) -> Self {
+        if delta.is_empty() {
             return Self {
                 coordinates: vec![],
             };
@@ -29,7 +29,7 @@ impl NormalizedPattern {
         for x_perm in &x_perms {
             for y_perm in &y_perms {
                 for z_perm in &z_perms {
-                    let mut transformed: Vec<Coordinate> = pattern
+                    let mut transformed: Vec<Coordinate> = delta
                         .iter()
                         .map(|&(x, y, z)| {
                             let new_x = x_perm[x];
@@ -54,7 +54,7 @@ impl NormalizedPattern {
     }
 }
 
-fn generate_all_patterns(dim: usize, nonzero_elements: usize) -> Vec<Pattern> {
+fn generate_all_deltas(dim: usize, nonzero_elements: usize) -> Vec<Delta> {
     if nonzero_elements == 0 {
         return vec![BTreeSet::new()];
     }
@@ -74,12 +74,12 @@ fn generate_all_patterns(dim: usize, nonzero_elements: usize) -> Vec<Pattern> {
         .collect()
 }
 
-fn normalize_and_classify_patterns(patterns: Vec<Pattern>, dim: usize) -> Vec<Vec<Pattern>> {
-    let mut classes: HashMap<NormalizedPattern, Vec<Pattern>> = HashMap::new();
+fn normalize_and_classify_deltas(deltas: Vec<Delta>, dim: usize) -> Vec<Vec<Delta>> {
+    let mut classes: HashMap<NormalizedDelta, Vec<Delta>> = HashMap::new();
 
-    for pattern in patterns {
-        let normalized = NormalizedPattern::from_pattern(&pattern, dim);
-        classes.entry(normalized).or_default().push(pattern);
+    for delta in deltas {
+        let normalized = NormalizedDelta::from_delta(&delta, dim);
+        classes.entry(normalized).or_default().push(delta);
     }
 
     classes.into_values().collect()
@@ -89,11 +89,11 @@ fn normalize_and_classify_patterns(patterns: Vec<Pattern>, dim: usize) -> Vec<Ve
 /// of dimension `dim` x `dim` x `dim` and print them. For each isomorphism
 /// class, we print out one representative.
 pub fn print_tensor_isomorphism_classes(dim: usize) {
-    let mut results: HashMap<usize, Vec<Vec<Pattern>>> = HashMap::new();
+    let mut results: HashMap<usize, Vec<Vec<Delta>>> = HashMap::new();
 
     for nonzero_elements in 0..=(dim * dim * dim) {
-        let patterns = generate_all_patterns(dim, nonzero_elements);
-        let classes = normalize_and_classify_patterns(patterns, dim);
+        let deltas = generate_all_deltas(dim, nonzero_elements);
+        let classes = normalize_and_classify_deltas(deltas, dim);
         results.insert(nonzero_elements, classes);
     }
 
@@ -112,30 +112,30 @@ pub fn print_tensor_isomorphism_classes(dim: usize) {
 mod tests {
     use super::*;
 
-    fn create_pattern(coords: &[(usize, usize, usize)]) -> Pattern {
+    fn create_delta(coords: &[(usize, usize, usize)]) -> Delta {
         coords.iter().cloned().collect()
     }
 
     #[test]
-    fn test_generate_all_patterns_small() {
-        let patterns = generate_all_patterns(1, 1);
-        assert_eq!(patterns.len(), 1);
-        assert_eq!(patterns[0], create_pattern(&[(0, 0, 0)]));
+    fn test_generate_all_deltas_small() {
+        let deltas = generate_all_deltas(1, 1);
+        assert_eq!(deltas.len(), 1);
+        assert_eq!(deltas[0], create_delta(&[(0, 0, 0)]));
     }
 
     #[test]
-    fn test_generate_all_patterns_count() {
-        let patterns = generate_all_patterns(2, 2);
-        assert_eq!(patterns.len(), 28);
+    fn test_generate_all_deltas_count() {
+        let deltas = generate_all_deltas(2, 2);
+        assert_eq!(deltas.len(), 28);
     }
 
     #[test]
-    fn test_classify_isomorphic_patterns() {
-        let pattern1 = create_pattern(&[(0, 0, 0), (0, 1, 1)]);
-        let pattern2 = create_pattern(&[(1, 1, 1), (1, 2, 2)]);
-        let patterns = vec![pattern1, pattern2];
+    fn test_classify_isomorphic_deltas() {
+        let delta1 = create_delta(&[(0, 0, 0), (0, 1, 1)]);
+        let delta2 = create_delta(&[(1, 1, 1), (1, 2, 2)]);
+        let deltas = vec![delta1, delta2];
 
-        let classes = normalize_and_classify_patterns(patterns, 3);
+        let classes = normalize_and_classify_deltas(deltas, 3);
         assert_eq!(classes.len(), 1);
         assert_eq!(classes[0].len(), 2);
     }
@@ -157,8 +157,8 @@ mod tests {
         ];
 
         for (nonzero_elements, expected_count) in cases {
-            let patterns = generate_all_patterns(dim, nonzero_elements);
-            let classes = normalize_and_classify_patterns(patterns, dim);
+            let deltas = generate_all_deltas(dim, nonzero_elements);
+            let classes = normalize_and_classify_deltas(deltas, dim);
             assert_eq!(classes.len(), expected_count);
         }
     }

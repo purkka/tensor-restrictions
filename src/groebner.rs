@@ -16,11 +16,11 @@ pub fn rational(numerator: i64, denominator: i64) -> FieldElement {
     FieldElement::new(numerator.into(), denominator.into())
 }
 
-fn constant_term(constant: FieldElement, nvars: usize) -> Term<FieldElement> {
+pub fn constant_term(constant: FieldElement, nvars: usize) -> Term<FieldElement> {
     Term::new(constant, Monomial::new(vec![0; nvars]))
 }
 
-fn term(coefficient: FieldElement, exponents: Vec<u32>) -> Term<FieldElement> {
+pub fn term(coefficient: FieldElement, exponents: Vec<u32>) -> Term<FieldElement> {
     Term::new(coefficient, Monomial::new(exponents))
 }
 
@@ -177,8 +177,6 @@ impl GroebnerSolver {
 
 #[cfg(test)]
 mod tests {
-    use groebner::{Monomial, Term};
-
     use super::*;
 
     #[test]
@@ -190,9 +188,9 @@ mod tests {
         // x0^2 + x1^2 - 1
         let f = Polynomial::new(
             vec![
-                Term::new(int(1), Monomial::new(vec![2, 0])),
-                Term::new(int(1), Monomial::new(vec![0, 2])),
-                Term::new(int(-1), Monomial::new(vec![0, 0])),
+                term(int(1), vec![2, 0]),
+                term(int(1), vec![0, 2]),
+                term(int(-1), vec![0, 0]),
             ],
             nvars,
             order,
@@ -200,10 +198,7 @@ mod tests {
 
         // x0 - x1
         let g = Polynomial::new(
-            vec![
-                Term::new(int(1), Monomial::new(vec![1, 0])),
-                Term::new(int(-1), Monomial::new(vec![0, 1])),
-            ],
+            vec![term(int(1), vec![1, 0]), term(int(-1), vec![0, 1])],
             nvars,
             order,
         );
@@ -211,17 +206,14 @@ mod tests {
         // x0 - x1, x1^2 - 1/2
         let expected = [
             Polynomial::new(
-                vec![
-                    Term::new(int(1), Monomial::new(vec![1, 0])),
-                    Term::new(int(-1), Monomial::new(vec![0, 1])),
-                ],
+                vec![term(int(1), vec![1, 0]), term(int(-1), vec![0, 1])],
                 nvars,
                 order,
             ),
             Polynomial::new(
                 vec![
-                    Term::new(int(1), Monomial::new(vec![0, 2])),
-                    Term::new(rational(-1, 2), Monomial::new(vec![0, 0])),
+                    term(int(1), vec![0, 2]),
+                    constant_term(rational(-1, 2), nvars),
                 ],
                 nvars,
                 order,

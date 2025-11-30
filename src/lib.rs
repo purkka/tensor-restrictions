@@ -3,6 +3,8 @@ pub mod restriction;
 
 use ndarray::{ArrayD, IxDyn};
 
+use crate::isomorphism::Delta;
+
 /// Returns the `r`-th unit tensor of order `n`
 pub fn order_n_unit_tensor(n: usize, r: usize) -> ArrayD<u32> {
     let shape = vec![r; n];
@@ -40,4 +42,15 @@ pub fn matrix_multiplication_tensor(n: usize, m: usize, p: usize) -> ArrayD<u32>
 /// Returns matrix multiplication tensor for multiplying two `n` times `n` matrices
 pub fn square_matrix_multiplication_tensor(n: usize) -> ArrayD<u32> {
     matrix_multiplication_tensor(n, n, n)
+}
+
+/// Returns delta (support) of `r`-th unit tensor of order 3
+pub fn unit_tensor_delta(r: usize) -> Delta {
+    let mut delta = Delta::new();
+
+    for i in 0..r {
+        delta.insert((i, i, i));
+    }
+
+    delta
 }

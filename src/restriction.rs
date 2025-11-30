@@ -1,7 +1,7 @@
 use std::{fmt::Display, sync::Arc};
 
 use itertools::Itertools;
-use ndarray::ArrayD;
+use ndarray::{ArrayD, IxDyn};
 use symbolica::{
     domains::{
         RingOps,
@@ -10,6 +10,8 @@ use symbolica::{
     poly::{PolyVariable, groebner::GroebnerBasis, polynomial::MultivariatePolynomial},
     symbol,
 };
+
+use crate::isomorphism::Delta;
 
 fn create_variable<T: Display>(a: T, b: T, c: T) -> PolyVariable {
     PolyVariable::Symbol(symbol!(&format!("v_{a}_{b}_{c}")))
@@ -63,7 +65,7 @@ pub fn tensor_restriction_of(
         anyhow::bail!("Tensor orders do not match")
     }
 
-    // precompute indices
+    // precompute index look up table
     let flat_index_lut = get_flat_indices(&dimensions_s, &dimensions_t);
 
     let s_ranges: Vec<std::ops::Range<usize>> = dimensions_s.iter().map(|&d| 0..d).collect();
@@ -119,6 +121,38 @@ pub fn tensor_restriction_of(
     Ok(!has_one)
 }
 
+// For the functions below, we assume a fixed order of 3
+
+fn delta_dimensions_3d(delta: &Delta) -> (usize, usize, usize) {
+    delta.iter().fold(
+        (0usize, 0usize, 0usize),
+        |(dim_x, dim_y, dim_z), &(x, y, z)| (dim_x.max(x + 1), dim_y.max(y + 1), dim_z.max(z + 1)),
+    )
+}
+
+/// Checks whether a tensor with support `source_support`
+/// reduces to another tensor with support `target_support`
+/// via a Groebner basis computation
+pub fn tensor_restriction_supports(
+    source_support: &Delta,
+    target_support: &Delta,
+) -> anyhow::Result<bool> {
+    let (sdx, sdy, sdz) = delta_dimensions_3d(source_support);
+    let (tdx, tdy, tdz) = delta_dimensions_3d(target_support);
+
+    let mut s_tensor = ArrayD::<u32>::zeros(IxDyn(&[sdx, sdy, sdz]));
+    let mut t_tensor = ArrayD::<u32>::zeros(IxDyn(&[tdx, tdy, tdz]));
+
+    for &(x, y, z) in source_support {
+        s_tensor[[x, y, z]] = 1;
+    }
+
+    for &(x, y, z) in target_support {
+        t_tensor[[x, y, z]] = 1;
+    }
+
+    tensor_restriction_of(&s_tensor, &t_tensor)
+}
 #[cfg(test)]
 mod tests {
     use crate::order_n_unit_tensor;

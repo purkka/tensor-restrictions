@@ -86,9 +86,8 @@ fn normalize_and_classify_deltas(deltas: Vec<Delta>, dim: usize) -> Vec<Vec<Delt
 }
 
 /// Iterate through all order-3 tensor isomorphism classes for tensors
-/// of dimension `dim` x `dim` x `dim` and print them. For each isomorphism
-/// class, we print out one representative.
-pub fn print_tensor_isomorphism_classes(dim: usize) {
+/// of dimension `dim` x `dim` x `dim`.
+pub fn get_isomorphism_classes(dim: usize) -> HashMap<usize, Vec<Vec<Delta>>> {
     let mut results: HashMap<usize, Vec<Vec<Delta>>> = HashMap::new();
 
     for nonzero_elements in 0..=(dim * dim * dim) {
@@ -96,6 +95,15 @@ pub fn print_tensor_isomorphism_classes(dim: usize) {
         let classes = normalize_and_classify_deltas(deltas, dim);
         results.insert(nonzero_elements, classes);
     }
+
+    results
+}
+
+/// Iterate through all order-3 tensor isomorphism classes for tensors
+/// of dimension `dim` x `dim` x `dim` and print them. For each isomorphism
+/// class, we print out one representative.
+pub fn print_tensor_isomorphism_classes(dim: usize) {
+    let results = get_isomorphism_classes(dim);
 
     for (nonzero_elements, classes) in results.iter().sorted_by_key(|&(&n, _)| n) {
         println!("nonzero elements: {}", nonzero_elements);

@@ -1,3 +1,4 @@
+pub mod groebner;
 pub mod isomorphism;
 pub mod restriction;
 

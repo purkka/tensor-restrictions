@@ -5,6 +5,8 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0.100"
+groebner = "0.1.1"
 itertools = "0.14.0"
 ndarray = "0.17.1"
+num-rational = "0.4.2"
 symbolica = "1.0.0"

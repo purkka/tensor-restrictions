@@ -123,7 +123,7 @@ pub fn tensor_restriction_of(
 
 // For the functions below, we assume a fixed order of 3
 
-fn delta_dimensions_3d(delta: &Delta) -> (usize, usize, usize) {
+pub fn delta_dimensions_3d(delta: &Delta) -> (usize, usize, usize) {
     delta.iter().fold(
         (0usize, 0usize, 0usize),
         |(dim_x, dim_y, dim_z), &(x, y, z)| (dim_x.max(x + 1), dim_y.max(y + 1), dim_z.max(z + 1)),

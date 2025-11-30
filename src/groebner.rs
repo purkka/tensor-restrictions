@@ -10,6 +10,18 @@ impl GroebnerSolver {
     ) -> anyhow::Result<Vec<Polynomial<BigRational>>> {
         groebner_basis(polynomials, monomial_order, true).map_err(anyhow::Error::from)
     }
+
+    pub fn has_one(basis: &[Polynomial<BigRational>]) -> bool {
+        fn is_constant_one(polynomial: &Polynomial<BigRational>) -> bool {
+            polynomial.terms.len() == 1 && {
+                let term = &polynomial.terms[0];
+                term.coefficient == BigRational::new(1.into(), 1.into())
+                    && term.monomial.degree() == 0
+            }
+        }
+
+        basis.iter().any(is_constant_one)
+    }
 }
 
 #[cfg(test)]
@@ -95,6 +107,7 @@ mod tests {
         let result = GroebnerSolver::compute_groebner_basis(vec![f, g], order);
 
         assert!(result.is_ok());
+        assert!(!GroebnerSolver::has_one(result.as_ref().unwrap()));
         assert_eq!(result.unwrap(), expected);
     }
 }

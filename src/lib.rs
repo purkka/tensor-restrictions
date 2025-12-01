@@ -1,6 +1,7 @@
 pub mod groebner;
 pub mod isomorphism;
 pub mod restriction;
+pub mod symbolica;
 
 use ndarray::{ArrayD, IxDyn};
 

@@ -1,32 +1,23 @@
 use itertools::Itertools;
-use ndarray::array;
 use tensor_restrictions::{
-    isomorphism::{get_isomorphism_classes, print_tensor_isomorphism_classes},
-    order_n_unit_tensor,
-    restriction::{tensor_restriction_of, tensor_restriction_supports},
+    isomorphism::{Delta, get_isomorphism_classes, print_tensor_isomorphism_classes},
+    symbolica::GroebnerSolver,
     unit_tensor_delta,
 };
 
 fn main() {
-    let m1 = array![[1, 0], [0, 0]].into_dyn();
-    let m2 = array![[1, 0], [0, 1]].into_dyn();
-    let m3 = array![[1, 0, 0], [0, 1, 0], [0, 0, 1]].into_dyn();
+    let mut p1 = Delta::new();
+    p1.insert((0, 0, 0));
+    p1.insert((1, 0, 1));
+    p1.insert((1, 1, 0));
 
-    println!("{:?}", tensor_restriction_of(&m1, &m2));
-    println!("{:?}", tensor_restriction_of(&m2, &m1));
-    println!("{:?}", tensor_restriction_of(&m2, &m3));
-    println!("{:?}", tensor_restriction_of(&m3, &m1));
-    println!("{:?}", tensor_restriction_of(&m3, &m2));
-    println!("{:?}", tensor_restriction_of(&m1, &m3));
+    let r1 = unit_tensor_delta(1);
+    let r2 = unit_tensor_delta(2);
+    let r3 = unit_tensor_delta(3);
 
-    let p1 = array![[[1, 0], [0, 0]], [[0, 1], [1, 0]]].into_dyn();
-    let r1 = order_n_unit_tensor(3, 1);
-    let r2 = order_n_unit_tensor(3, 2);
-    let r3 = order_n_unit_tensor(3, 3);
-
-    println!("{:?}", tensor_restriction_of(&p1, &r1));
-    println!("{:?}", tensor_restriction_of(&p1, &r2));
-    println!("{:?}", tensor_restriction_of(&p1, &r3));
+    println!("{:?}", GroebnerSolver::is_restriction_of(&p1, &r1));
+    println!("{:?}", GroebnerSolver::is_restriction_of(&p1, &r2));
+    println!("{:?}", GroebnerSolver::is_restriction_of(&p1, &r3));
 
     print_tensor_isomorphism_classes(2);
 
@@ -44,7 +35,7 @@ fn main() {
         println!("nonzero elements: {n}");
         for (i, class) in classes.iter().enumerate() {
             if let Some(representative) = class.first() {
-                let restricts = tensor_restriction_supports(representative, &r2).unwrap();
+                let restricts = GroebnerSolver::is_restriction_of(representative, &r2);
                 println!("\tclass {}: restricts {}", i + 1, restricts);
                 println!("\t\t{:?}", representative);
             }

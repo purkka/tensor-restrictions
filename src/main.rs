@@ -1,7 +1,7 @@
 use itertools::Itertools;
 use tensor_restrictions::{
     isomorphism::{Delta, get_isomorphism_classes, print_tensor_isomorphism_classes},
-    symbolica::GroebnerSolver,
+    symbolica::{GroebnerSolver, TensorRankFinder},
     unit_tensor_delta,
 };
 
@@ -35,8 +35,8 @@ fn main() {
         println!("nonzero elements: {n}");
         for (i, class) in classes.iter().enumerate() {
             if let Some(representative) = class.first() {
-                let restricts = GroebnerSolver::is_restriction_of(representative, &r2);
-                println!("\tclass {}: restricts {}", i + 1, restricts);
+                let rank = TensorRankFinder::find_tensor_rank(representative, 3);
+                println!("\tclass {}: rank <= {}", i + 1, rank);
                 println!("\t\t{:?}", representative);
             }
         }

@@ -9,7 +9,7 @@ use symbolica::{
     symbol,
 };
 
-use crate::{isomorphism::Delta, restriction::delta_dimensions_3d};
+use crate::{isomorphism::Delta, restriction::delta_dimensions_3d, unit_tensor_delta};
 
 pub fn int(integer: i64, field: &Q) -> symbolica::domains::rational::Fraction<IntegerRing> {
     field.to_element(Integer::new(integer), Integer::one(), false)
@@ -20,7 +20,7 @@ fn create_variable(var_name: String) -> PolyVariable {
 }
 
 #[derive(Default)]
-pub struct VariableFactory {
+struct VariableFactory {
     mapping: HashMap<String, usize>,
 }
 
@@ -171,6 +171,27 @@ impl GroebnerSolver {
         let groebner_basis = GroebnerBasis::new(&polynomials, false);
         let has_one = groebner_basis.system.iter().any(|p| p.is_one());
         !has_one
+    }
+}
+
+pub struct TensorRankFinder;
+
+impl TensorRankFinder {
+    pub fn find_tensor_rank(tensor: &Delta, max_rank: usize) -> usize {
+        let mut rank = 1;
+        loop {
+            let unit_tensor = unit_tensor_delta(rank);
+
+            if rank == max_rank {
+                break rank;
+            }
+
+            if GroebnerSolver::is_restriction_of(tensor, &unit_tensor) {
+                break rank;
+            }
+
+            rank += 1;
+        }
     }
 }
 

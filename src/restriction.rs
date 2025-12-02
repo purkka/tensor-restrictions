@@ -153,6 +153,7 @@ pub fn tensor_restriction_supports(
 
     tensor_restriction_of(&s_tensor, &t_tensor)
 }
+
 #[cfg(test)]
 mod tests {
     use crate::order_n_unit_tensor;

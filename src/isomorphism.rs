@@ -5,6 +5,34 @@ use itertools::{Itertools, iproduct};
 pub type Coordinate = (usize, usize, usize);
 pub type Delta = BTreeSet<Coordinate>; // effectively the support of a tensor of order 3
 
+pub struct Tensor {
+    delta: Delta,
+    dims: (usize, usize, usize),
+    nelements: usize,
+}
+
+impl Tensor {
+    pub fn new(support: &[Coordinate]) -> Self {
+        let mut delta = Delta::new();
+        for &coordinate in support.iter() {
+            delta.insert(coordinate);
+        }
+        let dims = support.iter().fold(
+            (0usize, 0usize, 0usize),
+            |(acc_x, acc_y, acc_z), &(x, y, z)| {
+                (acc_x.max(x + 1), acc_y.max(y + 1), acc_z.max(z + 1))
+            },
+        );
+        let nelements = delta.len();
+
+        Self {
+            delta,
+            dims,
+            nelements,
+        }
+    }
+}
+
 #[derive(Eq, Hash, PartialEq)]
 struct NormalizedDelta {
     coordinates: Vec<Coordinate>,

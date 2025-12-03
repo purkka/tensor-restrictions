@@ -85,32 +85,48 @@ fn normalize_and_classify_deltas(deltas: Vec<Delta>, dim: usize) -> Vec<Vec<Delt
     classes.into_values().collect()
 }
 
-/// Iterate through all order-3 tensor isomorphism classes for tensors
+/// Struct holding all order-3 tensor isomorphism classes for tensors
 /// of dimension `dim` x `dim` x `dim`.
-pub fn get_isomorphism_classes(dim: usize) -> HashMap<usize, Vec<Vec<Delta>>> {
-    let mut results: HashMap<usize, Vec<Vec<Delta>>> = HashMap::new();
-
-    for nonzero_elements in 0..=(dim * dim * dim) {
-        let deltas = generate_all_deltas(dim, nonzero_elements);
-        let classes = normalize_and_classify_deltas(deltas, dim);
-        results.insert(nonzero_elements, classes);
-    }
-
-    results
+pub struct TensorIsomorphisms {
+    dim: usize,
+    isomorphism_classes: HashMap<usize, Vec<Vec<Delta>>>,
 }
 
-/// Iterate through all order-3 tensor isomorphism classes for tensors
-/// of dimension `dim` x `dim` x `dim` and print them. For each isomorphism
-/// class, we print out one representative.
-pub fn print_tensor_isomorphism_classes(dim: usize) {
-    let results = get_isomorphism_classes(dim);
+impl TensorIsomorphisms {
+    pub fn new(dim: usize) -> Self {
+        let mut isomorphism_classes: HashMap<usize, Vec<Vec<Delta>>> = HashMap::new();
 
-    for (nonzero_elements, classes) in results.iter().sorted_by_key(|&(&n, _)| n) {
-        println!("nonzero elements: {}", nonzero_elements);
-        println!("nof classes: {}", classes.len());
-        for (i, class) in classes.iter().enumerate() {
-            if let Some(representative) = class.first() {
-                println!("\tclass {}: {:?}", i + 1, representative);
+        for nonzero_elements in 0..=(dim * dim * dim) {
+            let deltas = generate_all_deltas(dim, nonzero_elements);
+            let classes = normalize_and_classify_deltas(deltas, dim);
+            isomorphism_classes.insert(nonzero_elements, classes);
+        }
+
+        Self {
+            dim,
+            isomorphism_classes,
+        }
+    }
+
+    pub fn get_isomorphism_classes(&self) -> HashMap<usize, Vec<Vec<Delta>>> {
+        self.isomorphism_classes.clone()
+    }
+
+    /// Iterate through all order-3 tensor isomorphism classes for tensors
+    /// of dimension `dim` x `dim` x `dim` and print them. For each isomorphism
+    /// class, we print out one representative.
+    pub fn print_tensor_isomorphism_classes(&self) {
+        for (nonzero_elements, classes) in self
+            .get_isomorphism_classes()
+            .iter()
+            .sorted_by_key(|&(&n, _)| n)
+        {
+            println!("nonzero elements: {}", nonzero_elements);
+            println!("nof classes: {}", classes.len());
+            for (i, class) in classes.iter().enumerate() {
+                if let Some(representative) = class.first() {
+                    println!("\tclass {}: {:?}", i + 1, representative);
+                }
             }
         }
     }

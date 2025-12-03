@@ -1,30 +1,14 @@
 use itertools::Itertools;
-use tensor_restrictions::{
-    isomorphism::{Delta, get_isomorphism_classes, print_tensor_isomorphism_classes},
-    symbolica::{GroebnerSolver, TensorRankFinder},
-    unit_tensor_delta,
-};
+use tensor_restrictions::{isomorphism::TensorIsomorphisms, symbolica::TensorRankFinder};
 
 fn main() {
-    let mut p1 = Delta::new();
-    p1.insert((0, 0, 0));
-    p1.insert((1, 0, 1));
-    p1.insert((1, 1, 0));
-
-    let r1 = unit_tensor_delta(1);
-    let r2 = unit_tensor_delta(2);
-    let r3 = unit_tensor_delta(3);
-
-    println!("{:?}", GroebnerSolver::is_restriction_of(&p1, &r1));
-    println!("{:?}", GroebnerSolver::is_restriction_of(&p1, &r2));
-    println!("{:?}", GroebnerSolver::is_restriction_of(&p1, &r3));
-
-    print_tensor_isomorphism_classes(2);
-
     let dim = 2;
-    let r2 = unit_tensor_delta(dim);
+    let tensor_isomorphisms = TensorIsomorphisms::new(dim);
 
-    for (&n, classes) in get_isomorphism_classes(dim)
+    tensor_isomorphisms.print_tensor_isomorphism_classes();
+
+    for (&n, classes) in tensor_isomorphisms
+        .get_isomorphism_classes()
         .iter()
         .sorted_by_key(|&(&n, _)| n)
     {

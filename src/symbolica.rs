@@ -198,6 +198,7 @@ impl TensorRankFinder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::symbolica::GroebnerSolver;
 
     #[test]
     fn test_polynomial_system_generation() {
@@ -212,7 +213,8 @@ mod tests {
         target_tensor.insert((0, 0, 1));
         target_tensor.insert((1, 1, 1));
 
-        let expected_nof_polynomials = target_tensor.len();
+        let (sd1, sd2, sd3) = delta_dimensions_3d(&source_tensor);
+        let expected_nof_polynomials = sd1 * sd2 * sd3;
 
         let mut system = RestrictionSystem::new(source_tensor.clone(), target_tensor.clone());
         let polynomials = system.generate_system_of_polynomials();
@@ -220,12 +222,63 @@ mod tests {
         assert!(!polynomials.is_empty());
         assert!(polynomials.len() == expected_nof_polynomials);
 
+        // Every polynomial should have as many terms as nonzero elements in the taget tensor.
+        // Additionally, there should be +1 terms for as many polynomials as there are nonzero elements in the source tensor.
+        let polynomials_nterms: Vec<usize> = polynomials.iter().map(|p| p.nterms()).collect();
+        let s_len = source_tensor.len();
+        let t_len = target_tensor.len();
+
+        let count_t_len = polynomials_nterms.iter().filter(|&&x| x == t_len).count();
+        let count_t_len_plus_one = polynomials_nterms
+            .iter()
+            .filter(|&&x| x == t_len + 1)
+            .count();
+
+        // t_len and t_len_plus_one should include all terms
+        assert_eq!(count_t_len + count_t_len_plus_one, polynomials.len());
+
+        assert_eq!(count_t_len, expected_nof_polynomials - s_len);
+        assert_eq!(count_t_len_plus_one, s_len);
+
         // debug prints
         // for (i, poly) in polynomials.iter().enumerate() {
         //     println!("g{i}: {poly}");
         // }
 
         let restriction = GroebnerSolver::is_restriction_of(&source_tensor, &target_tensor);
-        assert!(!restriction);
+        assert!(restriction);
+    }
+
+    #[test]
+    fn test_tensor_reduces() {
+        let mut m1 = Delta::new();
+        m1.insert((0, 0, 0));
+        let mut m2 = Delta::new();
+        m2.insert((0, 0, 0));
+        m2.insert((1, 1, 0));
+        let mut m3 = Delta::new();
+        m3.insert((0, 0, 0));
+        m3.insert((1, 1, 0));
+        m3.insert((2, 2, 0));
+
+        assert!(GroebnerSolver::is_restriction_of(&m1, &m2));
+        assert!(!GroebnerSolver::is_restriction_of(&m2, &m1));
+        assert!(GroebnerSolver::is_restriction_of(&m2, &m3));
+        assert!(!GroebnerSolver::is_restriction_of(&m3, &m1));
+        assert!(!GroebnerSolver::is_restriction_of(&m3, &m2));
+        assert!(GroebnerSolver::is_restriction_of(&m1, &m3));
+
+        let mut p1 = Delta::new();
+        p1.insert((0, 0, 0));
+        p1.insert((1, 0, 1));
+        p1.insert((1, 1, 0));
+
+        let r1 = unit_tensor_delta(1);
+        let r2 = unit_tensor_delta(2);
+        let r3 = unit_tensor_delta(3);
+
+        assert!(!GroebnerSolver::is_restriction_of(&p1, &r1));
+        assert!(!GroebnerSolver::is_restriction_of(&p1, &r2));
+        assert!(GroebnerSolver::is_restriction_of(&p1, &r3));
     }
 }

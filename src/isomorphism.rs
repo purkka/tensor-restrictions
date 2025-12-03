@@ -5,6 +5,8 @@ use itertools::{Itertools, iproduct};
 pub type Coordinate = (usize, usize, usize);
 pub type Delta = BTreeSet<Coordinate>; // effectively the support of a tensor of order 3
 
+/// Helper struct to hold an order-3 tensor
+#[derive(Clone, Debug)]
 pub struct Tensor {
     delta: Delta,
     dims: (usize, usize, usize),
@@ -31,6 +33,22 @@ impl Tensor {
             nelements,
         }
     }
+
+    pub fn empty() -> Self {
+        Self {
+            delta: Delta::new(),
+            dims: (0, 0, 0),
+            nelements: 0,
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.nelements == 0
+    }
+
+    pub fn delta(&self) -> &Delta {
+        &self.delta
+    }
 }
 
 #[derive(Eq, Hash, PartialEq)]
@@ -39,17 +57,17 @@ struct NormalizedDelta {
 }
 
 impl NormalizedDelta {
-    fn from_delta(delta: &Delta, dim: usize) -> Self {
-        if delta.is_empty() {
+    fn from_tensor(tensor: &Tensor) -> Self {
+        if tensor.is_empty() {
             return Self {
                 coordinates: vec![],
             };
         }
 
-        let indices_per_axis: Vec<usize> = (0..dim).collect();
-        let x_perms: Vec<Vec<usize>> = indices_per_axis.iter().cloned().permutations(dim).collect();
-        let y_perms: Vec<Vec<usize>> = indices_per_axis.iter().cloned().permutations(dim).collect();
-        let z_perms: Vec<Vec<usize>> = indices_per_axis.iter().cloned().permutations(dim).collect();
+        let (dim_x, dim_y, dim_z) = tensor.dims;
+        let x_perms: Vec<Vec<usize>> = (0..dim_x).permutations(dim_x).collect();
+        let y_perms: Vec<Vec<usize>> = (0..dim_y).permutations(dim_y).collect();
+        let z_perms: Vec<Vec<usize>> = (0..dim_z).permutations(dim_z).collect();
 
         // try all combinations of permutations to find the canonical (lex smallest) representation
         let mut canonical_form = None;
@@ -57,7 +75,8 @@ impl NormalizedDelta {
         for x_perm in &x_perms {
             for y_perm in &y_perms {
                 for z_perm in &z_perms {
-                    let mut transformed: Vec<Coordinate> = delta
+                    let mut transformed: Vec<Coordinate> = tensor
+                        .delta
                         .iter()
                         .map(|&(x, y, z)| {
                             let new_x = x_perm[x];
@@ -82,32 +101,34 @@ impl NormalizedDelta {
     }
 }
 
-fn generate_all_deltas(dim: usize, nonzero_elements: usize) -> Vec<Delta> {
+fn generate_all_tensors(dims: (usize, usize, usize), nonzero_elements: usize) -> Vec<Tensor> {
     if nonzero_elements == 0 {
-        return vec![BTreeSet::new()];
+        return vec![Tensor::empty()];
     }
 
-    if nonzero_elements > dim * dim * dim {
+    let (dim_x, dim_y, dim_z) = dims;
+
+    if nonzero_elements > dim_x * dim_y * dim_z {
         return vec![];
     }
 
-    let all_coords: Vec<Coordinate> = iproduct!(0..dim, 0..dim, 0..dim)
+    let all_coords: Vec<Coordinate> = iproduct!(0..dim_x, 0..dim_y, 0..dim_z)
         .map(|(i, j, k)| (i, j, k))
         .collect();
 
     all_coords
         .into_iter()
         .combinations(nonzero_elements)
-        .map(|combos| combos.into_iter().collect())
+        .map(|combos| Tensor::new(&combos))
         .collect()
 }
 
-fn normalize_and_classify_deltas(deltas: Vec<Delta>, dim: usize) -> Vec<Vec<Delta>> {
-    let mut classes: HashMap<NormalizedDelta, Vec<Delta>> = HashMap::new();
+fn normalize_and_classify_tensors(tensors: Vec<Tensor>) -> Vec<Vec<Tensor>> {
+    let mut classes: HashMap<NormalizedDelta, Vec<Tensor>> = HashMap::new();
 
-    for delta in deltas {
-        let normalized = NormalizedDelta::from_delta(&delta, dim);
-        classes.entry(normalized).or_default().push(delta);
+    for tensor in tensors {
+        let normalized = NormalizedDelta::from_tensor(&tensor);
+        classes.entry(normalized).or_default().push(tensor);
     }
 
     classes.into_values().collect()
@@ -117,16 +138,16 @@ fn normalize_and_classify_deltas(deltas: Vec<Delta>, dim: usize) -> Vec<Vec<Delt
 /// of dimension `dim` x `dim` x `dim`.
 pub struct TensorIsomorphisms {
     dim: usize,
-    isomorphism_classes: HashMap<usize, Vec<Vec<Delta>>>,
+    isomorphism_classes: HashMap<usize, Vec<Vec<Tensor>>>,
 }
 
 impl TensorIsomorphisms {
     pub fn new(dim: usize) -> Self {
-        let mut isomorphism_classes: HashMap<usize, Vec<Vec<Delta>>> = HashMap::new();
+        let mut isomorphism_classes: HashMap<usize, Vec<Vec<Tensor>>> = HashMap::new();
 
         for nonzero_elements in 0..=(dim * dim * dim) {
-            let deltas = generate_all_deltas(dim, nonzero_elements);
-            let classes = normalize_and_classify_deltas(deltas, dim);
+            let tensors = generate_all_tensors((dim, dim, dim), nonzero_elements);
+            let classes = normalize_and_classify_tensors(tensors);
             isomorphism_classes.insert(nonzero_elements, classes);
         }
 
@@ -136,7 +157,7 @@ impl TensorIsomorphisms {
         }
     }
 
-    pub fn get_isomorphism_classes(&self) -> HashMap<usize, Vec<Vec<Delta>>> {
+    pub fn get_isomorphism_classes(&self) -> HashMap<usize, Vec<Vec<Tensor>>> {
         self.isomorphism_classes.clone()
     }
 
@@ -169,25 +190,25 @@ mod tests {
     }
 
     #[test]
-    fn test_generate_all_deltas_small() {
-        let deltas = generate_all_deltas(1, 1);
-        assert_eq!(deltas.len(), 1);
-        assert_eq!(deltas[0], create_delta(&[(0, 0, 0)]));
+    fn test_generate_all_tensors_small() {
+        let tensors = generate_all_tensors((1, 1, 1), 1);
+        assert_eq!(tensors.len(), 1);
+        assert_eq!(tensors[0].delta, create_delta(&[(0, 0, 0)]));
     }
 
     #[test]
-    fn test_generate_all_deltas_count() {
-        let deltas = generate_all_deltas(2, 2);
-        assert_eq!(deltas.len(), 28);
+    fn test_generate_all_tensors_count() {
+        let tensors = generate_all_tensors((2, 2, 2), 2);
+        assert_eq!(tensors.len(), 28);
     }
 
     #[test]
     fn test_classify_isomorphic_deltas() {
-        let delta1 = create_delta(&[(0, 0, 0), (0, 1, 1)]);
-        let delta2 = create_delta(&[(1, 1, 1), (1, 2, 2)]);
-        let deltas = vec![delta1, delta2];
+        let tensor1 = Tensor::new(&[(0, 0, 0), (0, 1, 1)]);
+        let tensor2 = Tensor::new(&[(1, 1, 1), (1, 2, 2)]);
+        let tensors = vec![tensor1, tensor2];
 
-        let classes = normalize_and_classify_deltas(deltas, 3);
+        let classes = normalize_and_classify_tensors(tensors);
         assert_eq!(classes.len(), 1);
         assert_eq!(classes[0].len(), 2);
     }
@@ -209,8 +230,8 @@ mod tests {
         ];
 
         for (nonzero_elements, expected_count) in cases {
-            let deltas = generate_all_deltas(dim, nonzero_elements);
-            let classes = normalize_and_classify_deltas(deltas, dim);
+            let tensors = generate_all_tensors((dim, dim, dim), nonzero_elements);
+            let classes = normalize_and_classify_tensors(tensors);
             assert_eq!(classes.len(), expected_count);
         }
     }

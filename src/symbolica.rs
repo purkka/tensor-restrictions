@@ -9,7 +9,11 @@ use symbolica::{
     symbol,
 };
 
-use crate::{isomorphism::Delta, restriction::delta_dimensions_3d, unit_tensor_delta};
+use crate::{
+    isomorphism::{Delta, Tensor},
+    restriction::delta_dimensions_3d,
+    unit_tensor_delta,
+};
 
 pub fn int(integer: i64, field: &Q) -> symbolica::domains::rational::Fraction<IntegerRing> {
     field.to_element(Integer::new(integer), Integer::one(), false)
@@ -177,7 +181,7 @@ impl GroebnerSolver {
 pub struct TensorRankFinder;
 
 impl TensorRankFinder {
-    pub fn find_tensor_rank(tensor: &Delta, max_rank: usize) -> usize {
+    pub fn find_tensor_rank(tensor: &Tensor, max_rank: usize) -> usize {
         let mut rank = 1;
         loop {
             let unit_tensor = unit_tensor_delta(rank);
@@ -186,7 +190,7 @@ impl TensorRankFinder {
                 break rank;
             }
 
-            if GroebnerSolver::is_restriction_of(tensor, &unit_tensor) {
+            if GroebnerSolver::is_restriction_of(tensor.delta(), &unit_tensor) {
                 break rank;
             }
 

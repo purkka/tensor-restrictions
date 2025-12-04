@@ -211,6 +211,42 @@ impl TensorIsomorphisms {
             .collect()
     }
 
+    fn filter_max_nonzero_elements(
+        tensor_isomorphisms: &Self,
+        max_elements: usize,
+    ) -> HashMap<usize, Vec<Vec<Tensor>>> {
+        tensor_isomorphisms
+            .get_isomorphism_classes()
+            .iter()
+            .filter(|&(nelems, _)| *nelems <= max_elements)
+            .map(|(&nelems, classes)| (nelems, classes.clone()))
+            .collect()
+    }
+
+    /// Get only the tensor isomorphisms that have at most as many elements as the max
+    /// dimension
+    pub fn get_d_sparse(tensor_isomorphisms: &Self) -> HashMap<usize, Vec<Vec<Tensor>>> {
+        let dims = tensor_isomorphisms.dims;
+        let d = dims.0.max(dims.1).max(dims.2);
+        Self::filter_max_nonzero_elements(tensor_isomorphisms, d)
+    }
+
+    /// Get only the tensor isomorphisms that have at most as many elements as the
+    /// largest dimension times the second largest dimension
+    pub fn get_d2_sparse(tensor_isomorphisms: &Self) -> HashMap<usize, Vec<Vec<Tensor>>> {
+        // Calculate d2 by multiplying the two largest dimensions. This is equal
+        // to the number of elements that fit into a Latin square
+        let (dx, dy, dz) = tensor_isomorphisms.dims;
+        let dim1 = dx.max(dy).max(dz);
+        let dim2 = match (dx, dy, dz) {
+            _ if dx == dim1 => dy.max(dz),
+            _ if dy == dim1 => dx.max(dz),
+            _ => dx.max(dy),
+        };
+
+        Self::filter_max_nonzero_elements(tensor_isomorphisms, dim1 * dim2)
+    }
+
     /// Iterate through all order-3 tensor isomorphism classes for tensors and print them.
     /// For each isomorphism class, we print out one representative.
     pub fn print_tensor_isomorphism_classes(tensor_isomorphisms: &Self) {
@@ -314,7 +350,7 @@ mod tests {
             (4, vec![2]),
         ]);
         let latin_square_classes =
-            TensorIsomorphisms::get_partial_latin_squares(&TensorIsomorphisms::new_square(2));
+            TensorIsomorphisms::get_partial_latin_squares(&TensorIsomorphisms::new_square(dim));
 
         assert_eq!(cases.len(), latin_square_classes.len());
 
@@ -325,5 +361,17 @@ mod tests {
             let tensors_per_class = &classes.iter().map(|t| t.len()).collect::<Vec<usize>>();
             assert_eq!(reference, tensors_per_class);
         }
+    }
+
+    #[test]
+    fn test_getting_sparsity_filtering() {
+        let dim = 2;
+        let tensor_isomorphisms = TensorIsomorphisms::new_square(dim);
+
+        let d_sparse = TensorIsomorphisms::get_d_sparse(&tensor_isomorphisms);
+        assert_eq!(dim + 1, d_sparse.len());
+
+        let d2_sparse = TensorIsomorphisms::get_d2_sparse(&tensor_isomorphisms);
+        assert_eq!(dim * dim + 1, d2_sparse.len());
     }
 }

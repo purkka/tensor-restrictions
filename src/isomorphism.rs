@@ -213,8 +213,8 @@ impl TensorIsomorphisms {
 
     /// Iterate through all order-3 tensor isomorphism classes for tensors and print them.
     /// For each isomorphism class, we print out one representative.
-    pub fn print_tensor_isomorphism_classes(&self) {
-        for (nonzero_elements, classes) in self
+    pub fn print_tensor_isomorphism_classes(tensor_isomorphisms: &Self) {
+        for (nonzero_elements, classes) in tensor_isomorphisms
             .get_isomorphism_classes()
             .iter()
             .sorted_by_key(|&(&n, _)| n)

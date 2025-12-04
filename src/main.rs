@@ -5,7 +5,7 @@ fn main() {
     let dim = 2;
     let tensor_isomorphisms = TensorIsomorphisms::new_square(dim);
 
-    tensor_isomorphisms.print_tensor_isomorphism_classes();
+    TensorIsomorphisms::print_tensor_isomorphism_classes(&tensor_isomorphisms);
 
     for (&n, classes) in tensor_isomorphisms
         .get_isomorphism_classes()

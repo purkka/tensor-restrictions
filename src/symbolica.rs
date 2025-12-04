@@ -181,12 +181,12 @@ impl GroebnerSolver {
 pub struct TensorRankFinder;
 
 impl TensorRankFinder {
-    pub fn find_tensor_rank(tensor: &Tensor, max_rank: usize) -> usize {
+    pub fn find_tensor_rank(tensor: &Tensor, max_rank: Option<usize>) -> usize {
         let mut rank = 1;
         loop {
             let unit_tensor = unit_tensor_delta(rank);
 
-            if rank == max_rank {
+            if Some(rank) == max_rank {
                 break rank;
             }
 

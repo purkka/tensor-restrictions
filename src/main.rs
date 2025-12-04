@@ -19,7 +19,7 @@ fn main() {
         println!("nonzero elements: {n}");
         for (i, class) in classes.iter().enumerate() {
             if let Some(representative) = class.first() {
-                let rank = TensorRankFinder::find_tensor_rank(representative, 3);
+                let rank = TensorRankFinder::find_tensor_rank(representative, Some(3));
                 println!("\tclass {}: rank <= {}", i + 1, rank);
                 println!("\t\t{:?}", representative);
             }

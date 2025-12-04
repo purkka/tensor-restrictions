@@ -3,7 +3,7 @@ use tensor_restrictions::{isomorphism::TensorIsomorphisms, symbolica::TensorRank
 
 fn main() {
     let dim = 2;
-    let tensor_isomorphisms = TensorIsomorphisms::new(dim);
+    let tensor_isomorphisms = TensorIsomorphisms::new_square(dim);
 
     tensor_isomorphisms.print_tensor_isomorphism_classes();
 

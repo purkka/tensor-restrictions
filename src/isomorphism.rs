@@ -135,24 +135,27 @@ fn normalize_and_classify_tensors(tensors: Vec<Tensor>) -> Vec<Vec<Tensor>> {
 }
 
 /// Struct holding all order-3 tensor isomorphism classes for tensors
-/// of dimension `dim` x `dim` x `dim`.
 pub struct TensorIsomorphisms {
-    dim: usize,
+    dims: (usize, usize, usize),
     isomorphism_classes: HashMap<usize, Vec<Vec<Tensor>>>,
 }
 
 impl TensorIsomorphisms {
-    pub fn new(dim: usize) -> Self {
+    pub fn new_square(dim: usize) -> Self {
+        Self::new((dim, dim, dim))
+    }
+
+    pub fn new(dims: (usize, usize, usize)) -> Self {
         let mut isomorphism_classes: HashMap<usize, Vec<Vec<Tensor>>> = HashMap::new();
 
-        for nonzero_elements in 0..=(dim * dim * dim) {
-            let tensors = generate_all_tensors((dim, dim, dim), nonzero_elements);
+        for nonzero_elements in 0..=(dims.0 * dims.1 * dims.2) {
+            let tensors = generate_all_tensors(dims, nonzero_elements);
             let classes = normalize_and_classify_tensors(tensors);
             isomorphism_classes.insert(nonzero_elements, classes);
         }
 
         Self {
-            dim,
+            dims,
             isomorphism_classes,
         }
     }
@@ -161,9 +164,8 @@ impl TensorIsomorphisms {
         self.isomorphism_classes.clone()
     }
 
-    /// Iterate through all order-3 tensor isomorphism classes for tensors
-    /// of dimension `dim` x `dim` x `dim` and print them. For each isomorphism
-    /// class, we print out one representative.
+    /// Iterate through all order-3 tensor isomorphism classes for tensors and print them.
+    /// For each isomorphism class, we print out one representative.
     pub fn print_tensor_isomorphism_classes(&self) {
         for (nonzero_elements, classes) in self
             .get_isomorphism_classes()

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use itertools::{Itertools, iproduct};
 
@@ -48,6 +48,27 @@ impl Tensor {
 
     pub fn delta(&self) -> &Delta {
         &self.delta
+    }
+
+    /// Check if tensor is a subset of a Latin square
+    pub fn is_partial_latin_square(&self) -> bool {
+        let mut xy: HashSet<(usize, usize)> = HashSet::new(); // x, y -> z uniqueness
+        let mut yz: HashSet<(usize, usize)> = HashSet::new(); // y, z -> x uniqueness
+        let mut zx: HashSet<(usize, usize)> = HashSet::new(); // z, x -> y uniqueness
+
+        for &(x, y, z) in self.delta() {
+            if !xy.insert((x, y)) {
+                return false;
+            }
+            if !yz.insert((y, z)) {
+                return false;
+            }
+            if !zx.insert((z, x)) {
+                return false;
+            }
+        }
+
+        true
     }
 }
 
@@ -164,6 +185,32 @@ impl TensorIsomorphisms {
         self.isomorphism_classes.clone()
     }
 
+    /// Get only the tensor isomorphisms of tensors that are (partial) latin squares
+    pub fn get_partial_latin_squares(
+        tensor_isomorphisms: &Self,
+    ) -> HashMap<usize, Vec<Vec<Tensor>>> {
+        tensor_isomorphisms
+            .get_isomorphism_classes()
+            .iter()
+            .map(|(&nelems, classes)| {
+                let filtered_tensors: Vec<Vec<Tensor>> = classes
+                    .iter()
+                    .map(|tensors| {
+                        tensors
+                            .iter()
+                            .filter(|&tensor| tensor.is_partial_latin_square())
+                            .cloned()
+                            .collect::<Vec<Tensor>>()
+                    })
+                    .filter(|filtered_vec| !filtered_vec.is_empty())
+                    .collect();
+
+                (nelems, filtered_tensors)
+            })
+            .filter(|(_, classes)| !classes.is_empty())
+            .collect()
+    }
+
     /// Iterate through all order-3 tensor isomorphism classes for tensors and print them.
     /// For each isomorphism class, we print out one representative.
     pub fn print_tensor_isomorphism_classes(&self) {
@@ -235,6 +282,48 @@ mod tests {
             let tensors = generate_all_tensors((dim, dim, dim), nonzero_elements);
             let classes = normalize_and_classify_tensors(tensors);
             assert_eq!(classes.len(), expected_count);
+        }
+    }
+
+    #[test]
+    fn test_is_partial_latin_square_valid() {
+        let tensor = Tensor::new(&[(0, 0, 0), (0, 1, 1), (1, 0, 1), (1, 1, 0)]);
+        assert!(tensor.is_partial_latin_square());
+
+        // both y=0 and y=1 have duplicates
+        let tensor2 = Tensor::new(&[(0, 0, 0), (0, 1, 1), (1, 0, 0), (1, 1, 1)]);
+        assert!(!tensor2.is_partial_latin_square());
+
+        // duplicate for y=0
+        let tensor3 = Tensor::new(&[(0, 0, 0), (0, 1, 1), (1, 0, 0)]);
+        assert!(!tensor3.is_partial_latin_square());
+
+        // duplicate for y=0
+        let tensor4 = Tensor::new(&[(0, 0, 0), (1, 0, 0)]);
+        assert!(!tensor4.is_partial_latin_square());
+    }
+
+    #[test]
+    fn test_getting_latin_squares() {
+        let dim = 2;
+        let cases = HashMap::from([
+            (0, vec![1]),
+            (1, vec![8]),
+            (2, vec![4, 4, 4, 4]),
+            (3, vec![8]),
+            (4, vec![2]),
+        ]);
+        let latin_square_classes =
+            TensorIsomorphisms::get_partial_latin_squares(&TensorIsomorphisms::new_square(2));
+
+        assert_eq!(cases.len(), latin_square_classes.len());
+
+        for (&nelems, classes) in latin_square_classes.iter() {
+            assert!(nelems <= dim * dim);
+            assert!(cases.contains_key(&nelems));
+            let reference = cases.get(&nelems).unwrap();
+            let tensors_per_class = &classes.iter().map(|t| t.len()).collect::<Vec<usize>>();
+            assert_eq!(reference, tensors_per_class);
         }
     }
 }

@@ -163,13 +163,22 @@ pub struct TensorIsomorphisms {
 
 impl TensorIsomorphisms {
     pub fn new_square(dim: usize) -> Self {
-        Self::new((dim, dim, dim))
+        Self::new((dim, dim, dim), None)
     }
 
-    pub fn new(dims: (usize, usize, usize)) -> Self {
+    pub fn new_square_sparse(dim: usize) -> Self {
+        Self::new((dim, dim, dim), Some(dim * dim))
+    }
+
+    pub fn new(dims: (usize, usize, usize), max_elements_limit: Option<usize>) -> Self {
         let mut isomorphism_classes: HashMap<usize, Vec<Vec<Tensor>>> = HashMap::new();
 
-        for nonzero_elements in 0..=(dims.0 * dims.1 * dims.2) {
+        let mut max_elements = dims.0 * dims.1 * dims.2;
+        if let Some(limit) = max_elements_limit {
+            max_elements = max_elements.min(limit)
+        }
+
+        for nonzero_elements in 0..=max_elements {
             let tensors = generate_all_tensors(dims, nonzero_elements);
             let classes = normalize_and_classify_tensors(tensors);
             isomorphism_classes.insert(nonzero_elements, classes);

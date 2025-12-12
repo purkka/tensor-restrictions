@@ -181,17 +181,17 @@ impl GroebnerSolver {
 pub struct TensorRankFinder;
 
 impl TensorRankFinder {
-    pub fn find_tensor_rank(tensor: &Tensor, max_rank: Option<usize>) -> usize {
+    pub fn find_tensor_rank(tensor: &Tensor, max_rank: Option<usize>) -> Option<usize> {
         let mut rank = 1;
         loop {
             let unit_tensor = unit_tensor_delta(rank);
 
-            if Some(rank) == max_rank {
-                break rank;
+            if GroebnerSolver::is_restriction_of(tensor.delta(), &unit_tensor) {
+                break Some(rank);
             }
 
-            if GroebnerSolver::is_restriction_of(tensor.delta(), &unit_tensor) {
-                break rank;
+            if Some(rank) == max_rank {
+                break None;
             }
 
             rank += 1;

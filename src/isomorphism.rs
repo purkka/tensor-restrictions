@@ -50,6 +50,10 @@ impl Tensor {
         &self.delta
     }
 
+    pub fn has_n_elements(&self, n: usize) -> bool {
+        self.nelements == n
+    }
+
     /// Check if tensor is a subset of a Latin square
     pub fn is_partial_latin_square(&self) -> bool {
         let mut xy: HashSet<(usize, usize)> = HashSet::new(); // x, y -> z uniqueness
@@ -69,6 +73,32 @@ impl Tensor {
         }
 
         true
+    }
+
+    pub fn as_3d_vec(&self) -> Vec<Vec<Vec<usize>>> {
+        let (dim_x, dim_y, dim_z) = self.dims;
+        let mut vec = vec![vec![vec![0usize; dim_z]; dim_y]; dim_x];
+        for &(x, y, z) in self.delta() {
+            vec[x][y][z] = 1usize;
+        }
+        vec
+    }
+
+    pub fn one_dim_is_one(&self) -> bool {
+        let (dim_x, dim_y, dim_z) = self.dims;
+        dim_x == 1 || dim_y == 1 || dim_z == 1
+    }
+
+    pub fn print_delta(&self) {
+        let formatted = format!(
+            "${}$",
+            self.delta()
+                .iter()
+                .map(|(x, y, z)| format!("({}, {}, {})", x, y, z))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        println!("{}", formatted);
     }
 }
 
@@ -184,6 +214,16 @@ impl TensorIsomorphisms {
             isomorphism_classes.insert(nonzero_elements, classes);
         }
 
+        Self {
+            dims,
+            isomorphism_classes,
+        }
+    }
+
+    pub fn from(
+        dims: (usize, usize, usize),
+        isomorphism_classes: HashMap<usize, Vec<Vec<Tensor>>>,
+    ) -> Self {
         Self {
             dims,
             isomorphism_classes,

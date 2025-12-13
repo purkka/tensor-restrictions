@@ -115,32 +115,42 @@ impl NormalizedDelta {
             };
         }
 
-        let (dim_x, dim_y, dim_z) = tensor.dims;
-        let x_perms: Vec<Vec<usize>> = (0..dim_x).permutations(dim_x).collect();
-        let y_perms: Vec<Vec<usize>> = (0..dim_y).permutations(dim_y).collect();
-        let z_perms: Vec<Vec<usize>> = (0..dim_z).permutations(dim_z).collect();
-
         // try all combinations of permutations to find the canonical (lex smallest) representation
         let mut canonical_form = None;
 
-        for x_perm in &x_perms {
-            for y_perm in &y_perms {
-                for z_perm in &z_perms {
-                    let mut transformed: Vec<Coordinate> = tensor
-                        .delta
-                        .iter()
-                        .map(|&(x, y, z)| {
-                            let new_x = x_perm[x];
-                            let new_y = y_perm[y];
-                            let new_z = z_perm[z];
-                            (new_x, new_y, new_z)
-                        })
-                        .collect();
+        let orig_dims = [tensor.dims.0, tensor.dims.1, tensor.dims.2];
+        let axis_orders: Vec<Coordinate> =
+            (0..3).permutations(3).map(|p| (p[0], p[1], p[2])).collect();
 
-                    transformed.sort();
+        for &(ax_x, ax_y, ax_z) in axis_orders.iter() {
+            let new_dim_x = orig_dims[ax_x];
+            let new_dim_y = orig_dims[ax_y];
+            let new_dim_z = orig_dims[ax_z];
 
-                    if canonical_form.is_none() || transformed < canonical_form.clone().unwrap() {
-                        canonical_form = Some(transformed);
+            let x_perms: Vec<Vec<usize>> = (0..new_dim_x).permutations(new_dim_x).collect();
+            let y_perms: Vec<Vec<usize>> = (0..new_dim_y).permutations(new_dim_y).collect();
+            let z_perms: Vec<Vec<usize>> = (0..new_dim_z).permutations(new_dim_z).collect();
+
+            for x_perm in &x_perms {
+                for y_perm in &y_perms {
+                    for z_perm in &z_perms {
+                        let mut transformed: Vec<Coordinate> = tensor
+                            .delta
+                            .iter()
+                            .map(|&(x, y, z)| {
+                                let new_x = x_perm[[x, y, z][ax_x]];
+                                let new_y = y_perm[[x, y, z][ax_y]];
+                                let new_z = z_perm[[x, y, z][ax_z]];
+                                (new_x, new_y, new_z)
+                            })
+                            .collect();
+
+                        transformed.sort();
+
+                        if canonical_form.is_none() || transformed < canonical_form.clone().unwrap()
+                        {
+                            canonical_form = Some(transformed);
+                        }
                     }
                 }
             }
@@ -357,11 +367,11 @@ mod tests {
         let cases = vec![
             (0, 1),
             (1, 1),
-            (2, 7),
-            (3, 7),
-            (4, 14),
-            (5, 7),
-            (6, 7),
+            (2, 3),
+            (3, 3),
+            (4, 6),
+            (5, 3),
+            (6, 3),
             (7, 1),
             (8, 1),
         ];
@@ -397,7 +407,7 @@ mod tests {
         let cases = HashMap::from([
             (0, vec![1]),
             (1, vec![8]),
-            (2, vec![4, 4, 4, 4]),
+            (2, vec![4, 12]),
             (3, vec![8]),
             (4, vec![2]),
         ]);
@@ -413,7 +423,11 @@ mod tests {
             assert!(nelems <= dim * dim);
             assert!(cases.contains_key(&nelems));
             let reference = cases.get(&nelems).unwrap();
-            let tensors_per_class = &classes.iter().map(|t| t.len()).collect::<Vec<usize>>();
+            let tensors_per_class = &classes
+                .iter()
+                .map(|t| t.len())
+                .sorted()
+                .collect::<Vec<usize>>();
             assert_eq!(reference, tensors_per_class);
         }
     }
